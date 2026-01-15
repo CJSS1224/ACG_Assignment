@@ -1,0 +1,8 @@
+# ST2504 Applied Cryptography - Assignment 2
+# Python Dependencies
+# 
+# Install with: pip install -r requirements.txt
+
+# Cryptography library - provides AES, RSA, HMAC, X.509 certificates
+# This is the main library used for all cryptographic operations
+cryptography>=41.0.0

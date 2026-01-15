@@ -1,0 +1,95 @@
+# ST2504 Applied Cryptography - Assignment 2
+# Git Ignore Configuration
+
+# =============================================================================
+# Python
+# =============================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# =============================================================================
+# IDE and Editor
+# =============================================================================
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# Operating System
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =============================================================================
+# Project Specific
+# =============================================================================
+# Log files
+*.log
+data/logs/*
+!data/logs/.gitkeep
+
+# Runtime generated client keys (optional - can include for demo)
+# keys/clients/*
+# !keys/clients/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+
+# =============================================================================
+# Security Note
+# =============================================================================
+# For this academic assignment, we ARE including private keys in the repo
+# for ease of demonstration. In a production environment, NEVER commit
+# private keys to version control. You would uncomment these lines:
+#
+# certs/ca/ca_private_key.pem
+# certs/server/server_private_key.pem
+# keys/clients/*.pem
