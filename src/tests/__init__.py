@@ -19,7 +19,3 @@ Running Tests:
     $ python -m pytest src/tests/test_encryption.py
 """
 
-# LEARN: Unit testing is crucial for cryptographic code. A small bug in
-# LEARN: encryption could make your entire system insecure. Tests verify
-# LEARN: that encryption followed by decryption returns the original data,
-# LEARN: that invalid signatures are rejected, etc.

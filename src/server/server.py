@@ -135,8 +135,6 @@ class SecureServer:
             host: IP address to bind to
             port: Port number to listen on
         """
-        # LEARN: Server initialization sets up all the components needed
-        # LEARN: before accepting any connections
         
         self.host = host
         self.port = port
@@ -144,21 +142,15 @@ class SecureServer:
         self.running = False
         
         # Connected clients dictionary: username -> ClientConnection
-        # LEARN: We use a dictionary for O(1) lookup by username
         self.clients: Dict[str, ClientConnection] = {}
         
         # Lock for thread-safe access to shared resources
-        # LEARN: Multiple threads access self.clients simultaneously
-        # LEARN: The lock prevents race conditions
         self.clients_lock = threading.Lock()
         
         # Initialize CA and load server keys
-        # LEARN: The CA is needed to issue certificates to new clients
         self.ca_private_key, self.ca_certificate = initialize_ca()
         
         # Master key for server-side encryption (at-rest)
-        # LEARN: This key encrypts messages stored on the server
-        # LEARN: In production, this would be loaded from secure storage
         self.storage_key = generate_aes_key()
         
         logger.info("Server initialized")
@@ -167,20 +159,11 @@ class SecureServer:
         """
         Start the server and begin accepting connections.
         """
-        # LEARN: Socket server startup sequence:
-        # LEARN: 1. Create socket
-        # LEARN: 2. Set options (SO_REUSEADDR allows quick restart)
-        # LEARN: 3. Bind to address
-        # LEARN: 4. Listen for connections
-        # LEARN: 5. Accept loop
         
         # Create TCP socket
-        # LEARN: AF_INET = IPv4, SOCK_STREAM = TCP
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # Allow address reuse (helpful during development)
-        # LEARN: Without this, you get "Address already in use" error
-        # LEARN: if you restart the server quickly
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         # Bind to address
@@ -203,8 +186,6 @@ class SecureServer:
         """
         while self.running:
             try:
-                # LEARN: accept() blocks until a client connects
-                # LEARN: Returns a new socket for that specific client
                 client_socket, address = self.socket.accept()
                 
                 logger.info(f"New connection from {address}")
@@ -214,8 +195,6 @@ class SecureServer:
                 client = ClientConnection(client_socket, address)
                 
                 # Handle client in a new thread
-                # LEARN: Each client gets its own thread so the server
-                # LEARN: can handle multiple clients simultaneously
                 client_thread = threading.Thread(
                     target=self._handle_client,
                     args=(client,),
@@ -272,8 +251,6 @@ class SecureServer:
             client: The client who sent the message
             message: The message to process
         """
-        # LEARN: Message routing - different message types need different handling
-        # LEARN: This is like a dispatcher that sends each message to the right handler
         
         msg_type = message.msg_type
         
@@ -364,8 +341,6 @@ class SecureServer:
             logger.info(f"Received public key from {client.username}")
             
             # Send acknowledgment with session key (encrypted with client's public key)
-            # LEARN: We encrypt the session key with the client's public key
-            # LEARN: Only they can decrypt it with their private key
             encrypted_session_key = encrypt_session_key(
                 client.session_key,
                 client.public_key
@@ -424,8 +399,6 @@ class SecureServer:
         
         # Verify the message signature if present
         if message.signature and client.public_key:
-            # LEARN: Verify the sender actually signed this message
-            # LEARN: This provides non-repudiation
             signature_valid = verify_signature_string(
                 message.payload,
                 message.signature,
@@ -530,8 +503,6 @@ class SecureServer:
             return
         
         # Send the public key
-        # LEARN: We send the public key in PEM format
-        # LEARN: This allows the requesting client to encrypt messages for the target
         public_key_pem = public_key_to_pem_string(target_client.public_key)
         
         response = Message(
@@ -553,8 +524,6 @@ class SecureServer:
             recipient: Username of recipient
             message: The message to store
         """
-        # LEARN: At-rest encryption protects stored messages
-        # LEARN: Even if someone accesses the storage, they can't read messages
         
         ensure_directory_exists(MESSAGES_DIR)
         

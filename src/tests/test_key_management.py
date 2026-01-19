@@ -160,7 +160,6 @@ class TestKeyStorage(unittest.TestCase):
         
         save_private_key(self.private_key, filepath, password)
         
-        # LEARN: Wrong password should raise an exception
         with self.assertRaises(Exception):
             load_private_key(filepath, wrong_password)
 
@@ -286,7 +285,6 @@ class TestCertificates(unittest.TestCase):
         )
         
         # Try to verify with CA2
-        # LEARN: Certificate should only verify against the CA that signed it
         is_valid, msg = verify_certificate(client_cert, ca2_cert)
         
         self.assertFalse(is_valid)
@@ -335,7 +333,6 @@ class TestSessionKey(unittest.TestCase):
         session_key = generate_session_key()
         encrypted = encrypt_session_key(session_key, self.public_key)
         
-        # LEARN: Only the matching private key can decrypt
         with self.assertRaises(Exception):
             decrypt_session_key(encrypted, other_private)
 

@@ -20,9 +20,6 @@ After running this script, you can start the server.
 import os
 import sys
 
-# LEARN: This adds the parent directory to Python's path
-# LEARN: so we can import from the 'src' package
-# LEARN: sys.path is a list of directories Python searches for modules
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 sys.path.insert(0, project_root)

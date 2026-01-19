@@ -20,8 +20,6 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Tuple, Optional
 
-# LEARN: The 'cryptography' library is the recommended Python library for crypto
-# LEARN: It's maintained by the Python Cryptographic Authority and well-audited
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
@@ -81,16 +79,7 @@ def generate_rsa_keypair(key_size: int = RSA_KEY_SIZE) -> Tuple[rsa.RSAPrivateKe
     Returns:
         Tuple of (private_key, public_key)
     """
-    # LEARN: RSA key generation explained:
-    # LEARN: 1. Choose two large prime numbers p and q
-    # LEARN: 2. Compute n = p * q (this becomes part of both keys)
-    # LEARN: 3. Compute φ(n) = (p-1)(q-1) (Euler's totient)
-    # LEARN: 4. Choose e (public exponent) - usually 65537
-    # LEARN: 5. Compute d where d*e ≡ 1 (mod φ(n)) (private exponent)
-    # LEARN: Public key = (n, e), Private key = (n, d)
     
-    # LEARN: public_exponent=65537 is standard - it's a Fermat prime
-    # LEARN: that makes encryption fast while remaining secure
     
     private_key = rsa.generate_private_key(
         public_exponent=65537,  # Standard public exponent (0x10001)
@@ -98,7 +87,6 @@ def generate_rsa_keypair(key_size: int = RSA_KEY_SIZE) -> Tuple[rsa.RSAPrivateKe
         backend=default_backend()
     )
     
-    # LEARN: The public key is mathematically derived from the private key
     public_key = private_key.public_key()
     
     return private_key, public_key
@@ -128,15 +116,10 @@ def serialize_private_key(
     Returns:
         PEM-encoded private key as bytes
     """
-    # LEARN: Private keys should ALWAYS be encrypted when stored
-    # LEARN: Even if an attacker gets the file, they can't use it without password
     
     if password:
-        # LEARN: BestAvailableEncryption uses AES-256-CBC with PBKDF2 key derivation
-        # LEARN: This is the strongest encryption available for key storage
         encryption = serialization.BestAvailableEncryption(password)
     else:
-        # LEARN: NoEncryption stores the key in plain text - NOT recommended!
         encryption = serialization.NoEncryption()
     
     return private_key.private_bytes(
@@ -158,8 +141,6 @@ def serialize_public_key(public_key: rsa.RSAPublicKey) -> bytes:
     Returns:
         PEM-encoded public key as bytes
     """
-    # LEARN: Public keys are safe to share - that's their purpose
-    # LEARN: Anyone can use them to encrypt data for you or verify your signatures
     
     return public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
@@ -222,8 +203,6 @@ def load_private_key(
         ValueError: If password is incorrect
         FileNotFoundError: If file doesn't exist
     """
-    # LEARN: When loading an encrypted key, you must provide the same password
-    # LEARN: used when saving it. Wrong password = ValueError exception
     
     with open(filepath, 'rb') as f:
         pem_data = f.read()
@@ -304,11 +283,7 @@ def generate_ca_certificate(
     Returns:
         X.509 certificate object
     """
-    # LEARN: X.509 is the standard format for public key certificates
-    # LEARN: A certificate binds a public key to an identity (subject name)
-    # LEARN: The CA certificate is special - it signs itself (self-signed)
     
-    # LEARN: The subject and issuer are the same for self-signed certificates
     subject = issuer = Name([
         NameAttribute(NameOID.COUNTRY_NAME, CA_COUNTRY),
         NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, CA_STATE),
@@ -317,7 +292,6 @@ def generate_ca_certificate(
         NameAttribute(NameOID.COMMON_NAME, CA_COMMON_NAME),
     ])
     
-    # LEARN: Certificate validity period
     now = datetime.now(timezone.utc)
     
     # Build the certificate
@@ -329,22 +303,16 @@ def generate_ca_certificate(
     cert_builder = cert_builder.not_valid_before(now)
     cert_builder = cert_builder.not_valid_after(now + timedelta(days=validity_days))
     
-    # LEARN: BasicConstraints extension marks this as a CA certificate
-    # LEARN: ca=True means this certificate can sign other certificates
     cert_builder = cert_builder.add_extension(
         BasicConstraints(ca=True, path_length=None),
         critical=True
     )
     
-    # LEARN: SubjectKeyIdentifier helps identify this certificate
-    # LEARN: It's a hash of the public key
     cert_builder = cert_builder.add_extension(
         SubjectKeyIdentifier.from_public_key(private_key.public_key()),
         critical=False
     )
     
-    # LEARN: Sign the certificate with the CA's private key
-    # LEARN: SHA256 is the hash algorithm used in the signature
     certificate = cert_builder.sign(
         private_key=private_key,
         algorithm=hashes.SHA256(),
@@ -376,8 +344,6 @@ def generate_certificate(
     Returns:
         X.509 certificate object
     """
-    # LEARN: Unlike the CA cert, this certificate is NOT self-signed
-    # LEARN: The issuer is the CA, and the subject is the entity (server/client)
     
     subject = Name([
         NameAttribute(NameOID.COUNTRY_NAME, CA_COUNTRY),
@@ -386,7 +352,6 @@ def generate_certificate(
         NameAttribute(NameOID.COMMON_NAME, subject_name),
     ])
     
-    # LEARN: The issuer is taken from the CA certificate
     issuer = ca_certificate.subject
     
     now = datetime.now(timezone.utc)
@@ -399,8 +364,6 @@ def generate_certificate(
     cert_builder = cert_builder.not_valid_before(now)
     cert_builder = cert_builder.not_valid_after(now + timedelta(days=validity_days))
     
-    # LEARN: ca=False means this is an end-entity certificate
-    # LEARN: It cannot be used to sign other certificates
     cert_builder = cert_builder.add_extension(
         BasicConstraints(ca=False, path_length=None),
         critical=True
@@ -412,8 +375,6 @@ def generate_certificate(
         critical=False
     )
     
-    # LEARN: Authority Key Identifier links this cert to the CA cert
-    # LEARN: It helps build the certificate chain for verification
     cert_builder = cert_builder.add_extension(
         AuthorityKeyIdentifier.from_issuer_public_key(ca_private_key.public_key()),
         critical=False
@@ -475,10 +436,6 @@ def verify_certificate(
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # LEARN: Certificate verification checks:
-    # LEARN: 1. Was it signed by the CA? (signature verification)
-    # LEARN: 2. Is it still valid? (not expired, not used before valid date)
-    # LEARN: 3. Is the issuer correct? (chain of trust)
     
     try:
         # Check expiration
@@ -490,11 +447,8 @@ def verify_certificate(
         if now > certificate.not_valid_after_utc:
             return False, "Certificate has expired"
         
-        # LEARN: Verify the signature on the certificate
-        # LEARN: The CA's public key is used to verify the CA's signature
         ca_public_key = ca_certificate.public_key()
         
-        # LEARN: This verifies that the CA actually signed this certificate
         ca_public_key.verify(
             certificate.signature,
             certificate.tbs_certificate_bytes,  # "to be signed" certificate data
@@ -518,7 +472,6 @@ def get_certificate_common_name(certificate: 'Certificate') -> str:
     Returns:
         Common Name string (e.g., username)
     """
-    # LEARN: The Common Name is typically the identity - username, domain name, etc.
     
     for attribute in certificate.subject:
         if attribute.oid == NameOID.COMMON_NAME:
@@ -540,10 +493,6 @@ def generate_session_key() -> bytes:
     Returns:
         Random bytes suitable for AES-256 key
     """
-    # LEARN: Symmetric encryption (AES) is much faster than asymmetric (RSA)
-    # LEARN: So we use RSA only to exchange the symmetric key
-    # LEARN: Then use AES for all actual message encryption
-    # LEARN: This hybrid approach is used in TLS, PGP, and most crypto systems
     
     return generate_random_bytes(AES_KEY_SIZE)
 
@@ -562,9 +511,6 @@ def encrypt_session_key(session_key: bytes, public_key: rsa.RSAPublicKey) -> byt
     Returns:
         Encrypted session key
     """
-    # LEARN: OAEP (Optimal Asymmetric Encryption Padding) is the recommended
-    # LEARN: padding scheme for RSA encryption. It provides better security
-    # LEARN: than the older PKCS#1 v1.5 padding.
     
     encrypted_key = public_key.encrypt(
         session_key,
@@ -655,8 +601,6 @@ def setup_client_keys(
     Returns:
         Tuple of (private_key, public_key, certificate)
     """
-    # LEARN: This function is called when a new client registers
-    # LEARN: It sets up everything the client needs for secure communication
     
     # Generate key pair
     private_key, public_key = generate_rsa_keypair()
@@ -730,8 +674,6 @@ def initialize_ca() -> Tuple[rsa.RSAPrivateKey, 'Certificate']:
     Returns:
         Tuple of (ca_private_key, ca_certificate)
     """
-    # LEARN: The CA should only be initialized once
-    # LEARN: After that, we load the existing CA keys
     
     if file_exists(CA_PRIVATE_KEY_PATH) and file_exists(CA_CERTIFICATE_PATH):
         # Load existing CA

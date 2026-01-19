@@ -13,9 +13,6 @@ These utilities ensure consistency across the server and client applications
 and reduce code duplication.
 """
 
-# LEARN: Centralizing constants and helpers in one place means if you need
-# LEARN: to change something (like the server port), you only change it in
-# LEARN: one file instead of hunting through all your code.
 
 from src.utils.constants import *
 from src.utils.helpers import *

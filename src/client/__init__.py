@@ -11,6 +11,3 @@ Main Components:
     - client.py : Main client application entry point
 """
 
-# LEARN: This __init__.py makes 'client' a subpackage of 'src'
-# LEARN: The client imports crypto modules to handle encryption/decryption
-# LEARN: locally before sending data over the network

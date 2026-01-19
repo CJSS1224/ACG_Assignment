@@ -61,19 +61,8 @@ def sign_message(message: bytes, private_key: rsa.RSAPrivateKey) -> bytes:
     Returns:
         Digital signature (bytes)
     """
-    # LEARN: Digital signature algorithm (simplified):
-    # LEARN: 1. Compute hash of the message: H = SHA256(message)
-    # LEARN: 2. "Encrypt" hash with private key: signature = H^d mod n
-    # LEARN:    (where d is the private exponent, n is the modulus)
-    # LEARN: 3. The result is the signature
     
-    # LEARN: Why does this work?
-    # LEARN: - Only the private key holder can create the signature
-    # LEARN: - Anyone with the public key can verify it
-    # LEARN: - If the message changes, the hash changes, signature becomes invalid
     
-    # LEARN: PKCS1v15 is the padding scheme used for RSA signatures
-    # LEARN: It adds structure to prevent certain mathematical attacks
     signature = private_key.sign(
         message,
         padding.PKCS1v15(),
@@ -127,17 +116,7 @@ def verify_signature(
     Returns:
         True if signature is valid, False otherwise
     """
-    # LEARN: Verification algorithm:
-    # LEARN: 1. "Decrypt" signature with public key: H' = signature^e mod n
-    # LEARN:    (where e is the public exponent)
-    # LEARN: 2. Compute hash of received message: H = SHA256(message)
-    # LEARN: 3. Compare H' with H
-    # LEARN: 4. If they match, signature is valid
     
-    # LEARN: Why non-repudiation?
-    # LEARN: - Only someone with the private key could create this signature
-    # LEARN: - The private key owner cannot claim someone else signed it
-    # LEARN: - This provides legal proof of origin
     
     try:
         public_key.verify(
@@ -149,10 +128,6 @@ def verify_signature(
         return True
         
     except InvalidSignature:
-        # LEARN: InvalidSignature exception means:
-        # LEARN: - Message was tampered with, OR
-        # LEARN: - Wrong public key (different sender), OR
-        # LEARN: - Signature is corrupted
         return False
 
 
@@ -203,14 +178,7 @@ def sign_with_timestamp(
         Tuple of (signature_base64, signed_data)
         signed_data is the message + timestamp that was actually signed
     """
-    # LEARN: Timestamped signatures are important for:
-    # LEARN: - Legal documents (prove when a contract was signed)
-    # LEARN: - Message ordering (prove message A was signed before message B)
-    # LEARN: - Audit trails (know exactly when something happened)
     
-    # LEARN: We concatenate message and timestamp, then sign the whole thing
-    # LEARN: This binds the timestamp to the message - can't change one without
-    # LEARN: invalidating the signature
     signed_data = f"{message}|{timestamp}"
     signature = sign_message_string(signed_data, private_key)
     
@@ -269,17 +237,12 @@ def create_signed_package(
     Returns:
         Dictionary with all components needed for verification
     """
-    # LEARN: "At-rest" non-repudiation means we can prove who sent what
-    # LEARN: even after the message is stored on disk
-    # LEARN: This is different from "in-transit" where we verify immediately
     
     from src.utils.helpers import get_timestamp
     
     timestamp = get_timestamp()
     
     # Create the data to sign (includes all context)
-    # LEARN: Including sender_name prevents someone from claiming
-    # LEARN: a different sender created the message
     data_to_sign = f"{sender_name}|{message}|{timestamp}"
     
     signature = sign_message_string(data_to_sign, private_key)
@@ -392,9 +355,6 @@ def sign_multiple_messages(
     Returns:
         List of tuples (message, signature_base64)
     """
-    # LEARN: Signing each message separately provides flexibility
-    # LEARN: Each message can be verified independently
-    # LEARN: If one signature fails, others are still valid
     
     results = []
     for message in messages:

@@ -33,10 +33,6 @@ class MessageType(Enum):
     Each message sent between client and server has a type that determines
     how it should be processed.
     """
-    # LEARN: Enum (enumeration) is a way to define a set of named constants
-    # LEARN: Instead of using magic strings like "REGISTER" throughout the code,
-    # LEARN: we use MessageType.REGISTER which is type-checked and auto-completed
-    # LEARN: auto() automatically assigns incrementing integer values
     
     # Client registration and authentication
     REGISTER = auto()           # Client wants to register with username
@@ -97,9 +93,6 @@ class Message:
         signature: Digital signature for non-repudiation
         version: Protocol version for compatibility
     """
-    # LEARN: @dataclass is a Python decorator that automatically generates
-    # LEARN: __init__, __repr__, __eq__ and other methods for a class
-    # LEARN: It's perfect for data container classes like messages
     
     msg_type: MessageType
     sender: str
@@ -116,8 +109,6 @@ class Message:
         Called automatically after __init__.
         Sets timestamp if not provided.
         """
-        # LEARN: __post_init__ runs after the dataclass creates the object
-        # LEARN: We use it to set default values that require computation
         
         if self.timestamp == 0.0:
             self.timestamp = get_timestamp()
@@ -129,8 +120,6 @@ class Message:
         Returns:
             Dictionary representation of the message
         """
-        # LEARN: We need to convert the MessageType enum to a string
-        # LEARN: because JSON doesn't know how to serialize enum objects
         
         data = asdict(self)
         data['msg_type'] = self.msg_type.name  # Convert enum to string
@@ -143,8 +132,6 @@ class Message:
         Returns:
             JSON string representation of the message
         """
-        # LEARN: JSON (JavaScript Object Notation) is a standard text format
-        # LEARN: for data exchange. It's human-readable and widely supported.
         
         return json.dumps(self.to_dict())
     
@@ -168,9 +155,6 @@ class Message:
         Returns:
             Message object
         """
-        # LEARN: @classmethod means this method belongs to the class, not instances
-        # LEARN: 'cls' refers to the Message class itself
-        # LEARN: This is a "factory method" pattern for creating objects
         
         # Convert string back to MessageType enum
         data['msg_type'] = MessageType[data['msg_type']]
@@ -208,8 +192,6 @@ class Message:
 # =============================================================================
 # MESSAGE FACTORY FUNCTIONS
 # =============================================================================
-# LEARN: Factory functions create pre-configured Message objects
-# LEARN: This makes the code cleaner and reduces repetition
 
 def create_register_message(username: str) -> Message:
     """
@@ -421,9 +403,6 @@ def create_session_key_message(
     Returns:
         Message object containing encrypted session key
     """
-    # LEARN: The session key is encrypted with the recipient's public key
-    # LEARN: Only they can decrypt it with their private key
-    # LEARN: This is how we securely share the symmetric (AES) key
     
     return Message(
         msg_type=MessageType.SESSION_KEY,
@@ -448,8 +427,6 @@ def validate_message(message: Message) -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # LEARN: Input validation is crucial for security
-    # LEARN: Never trust data from the network - always validate it
     
     # Check required fields
     if not message.sender:
@@ -502,7 +479,6 @@ def get_message_type_name(msg_type: MessageType) -> str:
     Returns:
         Human-readable string
     """
-    # LEARN: This is useful for logging and debugging
     
     names = {
         MessageType.REGISTER: "Registration Request",

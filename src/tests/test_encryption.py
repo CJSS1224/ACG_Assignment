@@ -45,8 +45,6 @@ class TestKeyGeneration(unittest.TestCase):
     
     def test_key_randomness(self):
         """Test that each generated key is unique."""
-        # LEARN: This tests that the random generator is working
-        # LEARN: Two calls should produce different keys
         key1 = generate_aes_key()
         key2 = generate_aes_key()
         self.assertNotEqual(key1, key2)
@@ -81,8 +79,6 @@ class TestPadding(unittest.TestCase):
         data = b"0123456789ABCDEF"  # 16 bytes
         padded = pad_data(data)
         
-        # LEARN: When data is exactly block size, a full block of padding is added
-        # LEARN: This ensures unambiguous unpadding
         self.assertEqual(len(padded), 32)
     
     def test_unpadding(self):
@@ -139,7 +135,6 @@ class TestEncryptDecrypt(unittest.TestCase):
         plaintext = "Secret message"
         ciphertext, iv = encrypt_message(plaintext, self.key)
         
-        # LEARN: Ciphertext should look nothing like plaintext
         self.assertNotEqual(plaintext, ciphertext)
         self.assertNotIn("Secret", ciphertext)
     
@@ -150,8 +145,6 @@ class TestEncryptDecrypt(unittest.TestCase):
         ct1, iv1 = encrypt_message(plaintext, self.key)
         ct2, iv2 = encrypt_message(plaintext, self.key)
         
-        # LEARN: Random IV ensures same message encrypts differently each time
-        # LEARN: This is crucial for security
         self.assertNotEqual(ct1, ct2)
         self.assertNotEqual(iv1, iv2)
     
@@ -162,8 +155,6 @@ class TestEncryptDecrypt(unittest.TestCase):
         
         ciphertext, iv = encrypt_message(plaintext, self.key)
         
-        # LEARN: Wrong key should cause decryption to fail
-        # LEARN: Usually results in padding error or garbage output
         with self.assertRaises(Exception):
             decrypt_message(ciphertext, iv, wrong_key)
 
@@ -214,7 +205,6 @@ class TestStorageEncryption(unittest.TestCase):
         plaintext = "Test"
         encrypted = encrypt_for_storage(plaintext, self.key)
         
-        # LEARN: Storage format should be self-documenting
         self.assertIn('ciphertext', encrypted)
         self.assertIn('iv', encrypted)
         self.assertIn('algorithm', encrypted)

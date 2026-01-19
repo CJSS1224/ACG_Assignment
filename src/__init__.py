@@ -17,10 +17,6 @@ Package Structure:
     - tests/    : Unit tests for all modules
 """
 
-# LEARN: This file makes the 'src' folder a Python package.
-# LEARN: When Python sees __init__.py in a folder, it treats that folder
-# LEARN: as a package that can be imported. Without this file, you cannot
-# LEARN: do "from src import something" or "from src.crypto import encryption"
 
 __version__ = "1.0.0"
 __author__ = "ST2504 Assignment 2 Team"

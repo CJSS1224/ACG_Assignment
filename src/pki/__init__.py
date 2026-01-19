@@ -20,15 +20,7 @@ PKI Architecture:
     - Each entity has its own RSA key pair
 """
 
-# LEARN: PKI is the foundation of secure communication. Without proper key
-# LEARN: management, all encryption is useless because attackers could
-# LEARN: intercept or forge keys.
 
-# LEARN: The "chain of trust" works like this:
-# LEARN: 1. Everyone trusts the CA certificate (pre-installed)
-# LEARN: 2. CA signs server and client certificates
-# LEARN: 3. When you receive a certificate, you verify it was signed by CA
-# LEARN: 4. If valid, you trust the public key in that certificate
 
 from src.pki.key_management import (
     generate_rsa_keypair,

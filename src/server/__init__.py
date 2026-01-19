@@ -11,6 +11,3 @@ Main Components:
     - server.py : Main server application entry point
 """
 
-# LEARN: This __init__.py makes 'server' a subpackage of 'src'
-# LEARN: You can now do: from src.server import server
-# LEARN: Or: from src.server.server import SecureServer

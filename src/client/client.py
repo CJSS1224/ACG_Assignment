@@ -115,12 +115,9 @@ class SecureClient:
         self.hmac_key: Optional[bytes] = None     # HMAC key (from server)
         
         # Other users' public keys (for signature verification and encryption)
-        # LEARN: We cache public keys so we don't request them every time
         self.peer_public_keys: Dict[str, any] = {}
         
         # Synchronization for public key requests
-        # LEARN: Threading.Event is used to signal between threads
-        # LEARN: One thread waits on the event, another thread sets it
         self._pending_key_request: Optional[str] = None  # Username we're waiting for
         self._key_request_event = threading.Event()  # Signals when key is received
         self._key_request_error: Optional[str] = None  # Error message if request failed
@@ -138,7 +135,6 @@ class SecureClient:
             True if connection successful, False otherwise
         """
         try:
-            # LEARN: Create a TCP socket and connect to server
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
             self.connected = True
@@ -249,8 +245,6 @@ class SecureClient:
                 key_data = json.loads(response.payload)
                 
                 # Decrypt session key with our private key
-                # LEARN: The server encrypted these with our public key
-                # LEARN: Only we can decrypt them with our private key
                 encrypted_session_key = base64_to_bytes(key_data['session_key'])
                 encrypted_hmac_key = base64_to_bytes(key_data['hmac_key'])
                 
@@ -352,12 +346,6 @@ class SecureClient:
             # - iv: Initialization vector for AES
             encrypted_data = json.loads(message.payload)
             
-            # LEARN: Hybrid encryption scheme:
-            # LEARN: 1. Sender generates random AES key for this message
-            # LEARN: 2. Sender encrypts message with AES key
-            # LEARN: 3. Sender encrypts AES key with RECIPIENT's public key
-            # LEARN: 4. Only recipient can decrypt the AES key with their private key
-            # LEARN: 5. Then recipient uses AES key to decrypt the message
             
             # Step 1: Decrypt the AES key using our private key
             from src.pki.key_management import decrypt_session_key
@@ -374,9 +362,6 @@ class SecureClient:
             # Verify signature if present
             signature_status = ""
             if message.signature:
-                # LEARN: To verify, we need the sender's public key
-                # LEARN: For now, we'll note that signature is present
-                # LEARN: Full verification would require fetching sender's public key
                 signature_status = " [SIGNED]"
             
             # Display the message
@@ -427,8 +412,6 @@ class SecureClient:
         Args:
             message: Message containing the public key or error
         """
-        # LEARN: This method runs in the BACKGROUND thread
-        # LEARN: It stores the key and signals the MAIN thread that's waiting
         
         if message.payload.startswith("ERROR:"):
             # Request failed
@@ -450,7 +433,6 @@ class SecureClient:
                 logger.error(f"Failed to parse public key: {e}")
         
         # Signal the waiting thread that we got a response
-        # LEARN: .set() wakes up any thread that called .wait() on this event
         self._key_request_event.set()
     
     def send_chat_message(self, recipient: str, text: str) -> None:
@@ -483,23 +465,15 @@ class SecureClient:
             
             recipient_public_key = self.peer_public_keys[recipient]
             
-            # LEARN: HYBRID ENCRYPTION SCHEME
-            # LEARN: We use both symmetric (AES) and asymmetric (RSA) encryption:
-            # LEARN: - AES is fast but requires shared key
-            # LEARN: - RSA is slow but allows encryption without shared secret
-            # LEARN: - Solution: Generate random AES key, encrypt message with AES,
-            # LEARN:   encrypt AES key with recipient's RSA public key
             
             # Step 1: Generate a random AES key just for this message
             from src.crypto.encryption import generate_aes_key
             message_aes_key = generate_aes_key()
             
             # Step 2: Encrypt the message with AES
-            # LEARN: AES encryption provides CONFIDENTIALITY
             ciphertext, iv = encrypt_message(text, message_aes_key)
             
             # Step 3: Encrypt the AES key with recipient's public key
-            # LEARN: Only the recipient can decrypt this with their private key
             from src.pki.key_management import encrypt_session_key
             encrypted_aes_key = encrypt_session_key(message_aes_key, recipient_public_key)
             
@@ -511,13 +485,9 @@ class SecureClient:
             })
             
             # Step 4: Sign the encrypted payload
-            # LEARN: RSA signature provides NON-REPUDIATION
-            # LEARN: Proves we sent this message - we can't deny it later
             signature = sign_message_string(encrypted_payload, self.private_key)
             
             # Step 5: Generate HMAC for integrity
-            # LEARN: HMAC provides INTEGRITY verification during transit
-            # LEARN: Detects if anyone modified the message
             hmac_value = generate_hmac_string(encrypted_payload, self.hmac_key)
             
             # Step 6: Generate nonce for replay protection
@@ -563,15 +533,7 @@ class SecureClient:
         Returns:
             True if public key was received, False otherwise
         """
-        # LEARN: To send an encrypted message to someone, we need their public key
-        # LEARN: The server stores public keys of all registered users
-        # LEARN: We request it before sending our first message to that user
         
-        # LEARN: SYNCHRONIZATION FLOW:
-        # LEARN: 1. Main thread: Clear event, set pending request, send request
-        # LEARN: 2. Main thread: Wait on event (blocks until set)
-        # LEARN: 3. Background thread: Receives response, stores key, sets event
-        # LEARN: 4. Main thread: Wakes up, checks if key was stored successfully
         
         # Reset the event and error state
         self._key_request_event.clear()
@@ -587,8 +549,6 @@ class SecureClient:
         self._send_message(request)
         
         # Wait for the background thread to receive and process the response
-        # LEARN: .wait(timeout) blocks until .set() is called or timeout expires
-        # LEARN: Returns True if event was set, False if timed out
         received = self._key_request_event.wait(timeout=10.0)  # 10 second timeout
         
         # Clear the pending request

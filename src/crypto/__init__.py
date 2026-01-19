@@ -16,13 +16,8 @@ Security Properties Achieved:
     - Non-repudiation: Sender cannot deny having sent the message
 """
 
-# LEARN: By organizing crypto functions into separate files, each team member
-# LEARN: can work independently. The __init__.py can also re-export commonly
-# LEARN: used functions for convenience.
 
 # Re-export commonly used functions for easier imports
-# LEARN: This allows users to do "from src.crypto import encrypt_message"
-# LEARN: instead of "from src.crypto.encryption import encrypt_message"
 
 from src.crypto.encryption import encrypt_message, decrypt_message
 from src.crypto.integrity import generate_hmac, verify_hmac

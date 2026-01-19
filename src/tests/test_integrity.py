@@ -71,7 +71,6 @@ class TestHMACGeneration(unittest.TestCase):
     
     def test_hmac_deterministic(self):
         """Test that same message and key produce same HMAC."""
-        # LEARN: HMAC must be deterministic for verification to work
         hmac1 = generate_hmac(self.message, self.key)
         hmac2 = generate_hmac(self.message, self.key)
         self.assertEqual(hmac1, hmac2)
@@ -105,7 +104,6 @@ class TestHMACGeneration(unittest.TestCase):
         hmac = generate_hmac(self.message, self.key)
         tampered_message = b"Tampered message"
         
-        # LEARN: This is the key security property - tampering is detected
         self.assertFalse(verify_hmac(tampered_message, hmac, self.key))
 
 
@@ -152,14 +150,12 @@ class TestHashing(unittest.TestCase):
     
     def test_sha256_avalanche(self):
         """Test avalanche effect - small change produces very different hash."""
-        # LEARN: The avalanche effect is a key property of secure hash functions
         hash1 = hash_sha256(b"Hello")
         hash2 = hash_sha256(b"hello")  # Just changed case
         
         # Count differing bits
         differing_bits = sum(bin(b1 ^ b2).count('1') for b1, b2 in zip(hash1, hash2))
         
-        # LEARN: Good hash should have ~50% of bits different
         # At least 25% should differ
         self.assertGreater(differing_bits, 64)  # 64/256 = 25%
     
@@ -193,7 +189,6 @@ class TestNonce(unittest.TestCase):
         # First use should succeed
         self.assertTrue(check_and_record_nonce(nonce))
         
-        # LEARN: Second use should fail - this prevents replay attacks
         self.assertFalse(check_and_record_nonce(nonce))
     
     def test_different_nonces_accepted(self):
@@ -291,7 +286,6 @@ class TestPasswordHashing(unittest.TestCase):
         hash1, salt1 = hash_password(password)
         hash2, salt2 = hash_password(password)
         
-        # LEARN: Different salts mean different hashes, even for same password
         self.assertNotEqual(hash1, hash2)
         self.assertNotEqual(salt1, salt2)
 

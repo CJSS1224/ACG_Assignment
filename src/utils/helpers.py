@@ -44,10 +44,6 @@ def bytes_to_base64(data: bytes) -> str:
         >>> bytes_to_base64(b'Hello')
         'SGVsbG8='
     """
-    # LEARN: Binary data (like encrypted bytes) contains non-printable characters
-    # LEARN: that can cause problems when sending over networks or storing in text files.
-    # LEARN: Base64 converts binary to ASCII text using A-Z, a-z, 0-9, +, /, =
-    # LEARN: The downside is the output is about 33% larger than the input.
     
     return base64.b64encode(data).decode(TEXT_ENCODING)
 
@@ -66,8 +62,6 @@ def base64_to_bytes(data: str) -> bytes:
         >>> base64_to_bytes('SGVsbG8=')
         b'Hello'
     """
-    # LEARN: This reverses the Base64 encoding process
-    # LEARN: First we encode the string to bytes (ASCII), then decode Base64
     
     return base64.b64decode(data.encode(TEXT_ENCODING))
 
@@ -82,9 +76,6 @@ def string_to_bytes(data: str) -> bytes:
     Returns:
         UTF-8 encoded bytes
     """
-    # LEARN: Strings in Python 3 are Unicode, but cryptographic functions
-    # LEARN: need bytes. UTF-8 encoding converts characters to their byte
-    # LEARN: representation. For ASCII characters, it's 1 byte per character.
     
     return data.encode(TEXT_ENCODING)
 
@@ -99,8 +90,6 @@ def bytes_to_string(data: bytes) -> str:
     Returns:
         UTF-8 decoded string
     """
-    # LEARN: This reverses string_to_bytes()
-    # LEARN: Only use this for data that was originally text, not binary data
     
     return data.decode(TEXT_ENCODING)
 
@@ -120,9 +109,6 @@ def get_timestamp() -> float:
         >>> get_timestamp()
         1704067200.123456
     """
-    # LEARN: Unix timestamp is a standard way to represent time as a single number
-    # LEARN: It's timezone-independent and easy to compare mathematically
-    # LEARN: time.time() returns a float with microsecond precision
     
     return time.time()
 
@@ -134,9 +120,6 @@ def get_timestamp_string() -> str:
     Returns:
         Timestamp in ISO 8601 format (YYYY-MM-DD HH:MM:SS)
     """
-    # LEARN: Human-readable timestamps are useful for logs and display
-    # LEARN: datetime.now(timezone.utc) gets current time in UTC timezone
-    # LEARN: This avoids timezone confusion between different machines
     
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -154,15 +137,10 @@ def is_timestamp_valid(timestamp: float, max_age_seconds: float) -> bool:
     Returns:
         True if timestamp is within acceptable range, False otherwise
     """
-    # LEARN: Replay attack: Attacker captures a valid message and sends it again later
-    # LEARN: By checking timestamps, we reject messages that are too old
-    # LEARN: This only works if both parties have reasonably synchronized clocks
     
     current_time = get_timestamp()
     age = current_time - timestamp
     
-    # LEARN: We also reject timestamps from the future (clock skew tolerance)
-    # LEARN: A message from 5 minutes in the future is suspicious
     if age < -60:  # Allow 1 minute of clock skew
         return False
     
@@ -180,8 +158,6 @@ def ensure_directory_exists(directory_path: str) -> None:
     Args:
         directory_path: Path to the directory to create
     """
-    # LEARN: os.makedirs creates the directory and all parent directories
-    # LEARN: exist_ok=True means don't raise an error if it already exists
     
     os.makedirs(directory_path, exist_ok=True)
 
@@ -212,8 +188,6 @@ def read_file_bytes(file_path: str) -> bytes:
     Raises:
         FileNotFoundError: If the file doesn't exist
     """
-    # LEARN: 'rb' mode opens file for reading in binary mode
-    # LEARN: Always use binary mode for encrypted data, keys, certificates
     
     with open(file_path, 'rb') as f:
         return f.read()
@@ -227,8 +201,6 @@ def write_file_bytes(file_path: str, data: bytes) -> None:
         file_path: Path to the file to write
         data: Binary data to write
     """
-    # LEARN: 'wb' mode opens file for writing in binary mode
-    # LEARN: This will overwrite any existing file
     
     # Ensure the directory exists
     ensure_directory_exists(os.path.dirname(file_path))
@@ -247,8 +219,6 @@ def read_file_text(file_path: str) -> str:
     Returns:
         File contents as string
     """
-    # LEARN: 'r' mode opens file for reading in text mode
-    # LEARN: encoding parameter ensures consistent handling across platforms
     
     with open(file_path, 'r', encoding=TEXT_ENCODING) as f:
         return f.read()
@@ -284,20 +254,13 @@ def setup_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
     Returns:
         Configured logger instance
     """
-    # LEARN: Logging is essential for debugging and monitoring
-    # LEARN: Instead of using print(), use logging which gives you:
-    # LEARN: - Timestamps, log levels (DEBUG/INFO/WARNING/ERROR)
-    # LEARN: - Easy filtering of messages by level
-    # LEARN: - Output to both console and file simultaneously
     
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, LOG_LEVEL))
     
-    # LEARN: Formatter defines how each log message looks
     formatter = logging.Formatter(LOG_FORMAT)
     
     # Console handler - prints to terminal
-    # LEARN: StreamHandler() without arguments defaults to sys.stderr
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
@@ -326,9 +289,6 @@ def is_valid_username(username: str) -> bool:
     Returns:
         True if username is valid, False otherwise
     """
-    # LEARN: Input validation is crucial for security
-    # LEARN: Without it, attackers could send malformed data to crash the app
-    # LEARN: or inject malicious content
     
     if not username:
         return False
@@ -337,7 +297,6 @@ def is_valid_username(username: str) -> bool:
         return False
     
     # Only allow alphanumeric characters and underscores
-    # LEARN: This prevents injection attacks and ensures safe file names
     return username.replace('_', '').isalnum()
 
 
@@ -351,8 +310,6 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         Sanitized filename safe for use in file paths
     """
-    # LEARN: Path traversal attack: using "../" to access files outside
-    # LEARN: the intended directory. We must remove these characters.
     
     # Remove path separators and other dangerous characters
     unsafe_chars = ['/', '\\', '..', ':', '*', '?', '"', '<', '>', '|']
@@ -378,9 +335,6 @@ def generate_random_bytes(length: int) -> bytes:
     Returns:
         Random bytes
     """
-    # LEARN: os.urandom() uses the operating system's secure random generator
-    # LEARN: This is suitable for cryptographic purposes (keys, nonces, IVs)
-    # LEARN: NEVER use random.random() for security - it's predictable!
     
     return os.urandom(length)
 
@@ -395,9 +349,6 @@ def generate_nonce() -> bytes:
     Returns:
         Random nonce bytes
     """
-    # LEARN: Nonce = Number used ONCE
-    # LEARN: Each message includes a unique nonce. If an attacker replays
-    # LEARN: the message, the server will see the same nonce twice and reject it.
     
     return generate_random_bytes(NONCE_SIZE)
 
@@ -417,8 +368,6 @@ def format_bytes_hex(data: bytes, max_length: int = 32) -> str:
     Returns:
         Hex string representation
     """
-    # LEARN: Hexadecimal is useful for displaying binary data in logs
-    # LEARN: Each byte becomes two hex characters (00-FF)
     
     hex_str = data[:max_length].hex()
     if len(data) > max_length:

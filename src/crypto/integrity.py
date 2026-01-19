@@ -61,10 +61,6 @@ def generate_hmac_key() -> bytes:
     Returns:
         32 bytes of cryptographically secure random data
     """
-    # LEARN: The HMAC key should be at least as long as the hash output
-    # LEARN: For SHA-256, that's 256 bits (32 bytes)
-    # LEARN: Shorter keys provide less security
-    # LEARN: This key is different from the encryption key!
     
     return generate_random_bytes(HMAC_KEY_SIZE)
 
@@ -88,19 +84,11 @@ def generate_hmac(message: bytes, key: bytes) -> bytes:
     Returns:
         HMAC digest (32 bytes for SHA-256)
     """
-    # LEARN: HMAC works differently from just hashing:
-    # LEARN: Regular hash: digest = HASH(message)
-    # LEARN: HMAC: digest = HASH((key XOR opad) || HASH((key XOR ipad) || message))
-    # LEARN: This construction prevents "length extension attacks"
-    # LEARN: that affect plain hashes
     
-    # LEARN: Create an HMAC object with the specified key and hash algorithm
     h = HMAC(key, hashes.SHA256(), backend=default_backend())
     
-    # LEARN: update() adds data to be hashed (can be called multiple times)
     h.update(message)
     
-    # LEARN: finalize() computes and returns the final HMAC digest
     return h.finalize()
 
 
@@ -138,17 +126,10 @@ def verify_hmac(message: bytes, hmac_value: bytes, key: bytes) -> bool:
     Returns:
         True if HMAC is valid, False if message was tampered with
     """
-    # LEARN: We recompute the HMAC and compare it to the provided value
-    # LEARN: If they match, the message is authentic and unmodified
     
-    # LEARN: IMPORTANT: We use hmac.compare_digest() instead of ==
-    # LEARN: Regular == comparison can leak timing information
-    # LEARN: An attacker could measure response time to guess the HMAC byte by byte
-    # LEARN: compare_digest() takes constant time regardless of where bytes differ
     
     expected_hmac = generate_hmac(message, key)
     
-    # LEARN: Constant-time comparison prevents timing attacks
     return hmac_module.compare_digest(expected_hmac, hmac_value)
 
 
@@ -190,12 +171,7 @@ def hash_sha256(data: bytes) -> bytes:
     Returns:
         32-byte SHA-256 digest
     """
-    # LEARN: SHA-256 is a one-way function:
-    # LEARN: - Given data, easy to compute hash
-    # LEARN: - Given hash, practically impossible to find original data
-    # LEARN: - Small change in input = completely different hash (avalanche effect)
     
-    # LEARN: hashlib is Python's built-in hash library
     return hashlib.sha256(data).digest()
 
 
@@ -209,8 +185,6 @@ def hash_sha256_string(data: str) -> str:
     Returns:
         64-character hexadecimal hash string
     """
-    # LEARN: .hexdigest() returns a hex string instead of bytes
-    # LEARN: Hex is often used because it's human-readable
     
     return hashlib.sha256(string_to_bytes(data)).hexdigest()
 
@@ -235,8 +209,6 @@ def hash_message(message: str) -> str:
 # NONCE GENERATION AND TRACKING
 # =============================================================================
 
-# LEARN: This set tracks nonces we've seen to prevent replay attacks
-# LEARN: In production, this should be persistent (database) not in-memory
 _seen_nonces = set()
 
 
@@ -250,10 +222,6 @@ def generate_nonce() -> bytes:
     Returns:
         16 bytes of random data
     """
-    # LEARN: Nonce = "Number used ONCE"
-    # LEARN: Each message includes a unique nonce
-    # LEARN: Server tracks seen nonces and rejects duplicates
-    # LEARN: This prevents attackers from replaying old messages
     
     return generate_random_bytes(NONCE_SIZE)
 
@@ -282,23 +250,15 @@ def check_and_record_nonce(nonce: str) -> bool:
         True if nonce is new (message is fresh)
         False if nonce was seen before (possible replay attack!)
     """
-    # LEARN: Replay attack defense:
-    # LEARN: 1. Every message includes a unique nonce
-    # LEARN: 2. Server records all nonces it has processed
-    # LEARN: 3. If the same nonce appears twice, reject the message
-    # LEARN: 4. This means captured messages can't be re-sent
     
     global _seen_nonces
     
     if nonce in _seen_nonces:
-        # LEARN: We've seen this nonce before - possible attack!
         return False
     
     # Record the nonce
     _seen_nonces.add(nonce)
     
-    # LEARN: In production, we'd also need to clean old nonces
-    # LEARN: to prevent the set from growing forever
     
     return True
 
@@ -340,9 +300,6 @@ def verify_timestamp(timestamp: float, max_age: float = MAX_MESSAGE_AGE) -> Tupl
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # LEARN: Timestamp checking has two purposes:
-    # LEARN: 1. Reject very old messages (captured and replayed later)
-    # LEARN: 2. Reject messages from the future (clock manipulation attack)
     
     if is_timestamp_valid(timestamp, max_age):
         return True, "Timestamp is valid"
@@ -376,15 +333,10 @@ def create_integrity_data(message: str, hmac_key: bytes) -> dict:
     Returns:
         Dictionary with 'hmac', 'nonce', 'timestamp' fields
     """
-    # LEARN: This function bundles all integrity mechanisms together
-    # LEARN: When sending a message, include this data
-    # LEARN: When receiving, verify all of it before processing
     
     nonce = generate_nonce_string()
     timestamp = create_timestamp()
     
-    # LEARN: We include nonce and timestamp in the HMAC calculation
-    # LEARN: This prevents attackers from modifying these values
     integrity_string = f"{message}|{nonce}|{timestamp}"
     hmac_value = generate_hmac_string(integrity_string, hmac_key)
     
@@ -416,8 +368,6 @@ def verify_integrity_data(
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # LEARN: Defense in depth: multiple checks for multiple attack vectors
-    # LEARN: All checks must pass for the message to be accepted
     
     # Extract values
     hmac_value = integrity_data.get('hmac', '')
@@ -458,20 +408,11 @@ def hash_password(password: str, salt: bytes = None) -> Tuple[str, str]:
     Returns:
         Tuple of (hashed_password_base64, salt_base64)
     """
-    # LEARN: Password hashing is different from message hashing:
-    # LEARN: 1. We use a random salt to prevent rainbow table attacks
-    # LEARN: 2. We use a slow hash to prevent brute force attacks
-    # LEARN: 3. Each password has a unique salt stored with the hash
     
-    # LEARN: A "salt" is random data added to the password before hashing
-    # LEARN: This means identical passwords produce different hashes
-    # LEARN: Attackers can't pre-compute hashes of common passwords
     
     if salt is None:
         salt = generate_random_bytes(16)
     
-    # LEARN: Combine password and salt, then hash
-    # LEARN: In production, use a dedicated password hash like Argon2 or bcrypt
     salted_password = salt + string_to_bytes(password)
     password_hash = hash_sha256(salted_password)
     
@@ -490,10 +431,6 @@ def verify_password(password: str, stored_hash: str, stored_salt: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    # LEARN: Verification process:
-    # LEARN: 1. Get the salt that was used when storing
-    # LEARN: 2. Hash the provided password with that salt
-    # LEARN: 3. Compare with stored hash
     
     salt = base64_to_bytes(stored_salt)
     
@@ -504,5 +441,4 @@ def verify_password(password: str, stored_hash: str, stored_salt: str) -> bool:
     # Compare with stored hash
     stored_hash_bytes = base64_to_bytes(stored_hash)
     
-    # LEARN: Use constant-time comparison to prevent timing attacks
     return hmac_module.compare_digest(computed_hash, stored_hash_bytes)

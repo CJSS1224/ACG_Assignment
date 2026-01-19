@@ -44,7 +44,6 @@ class TestSignatureBasic(unittest.TestCase):
         """Test that signature can be created."""
         signature = sign_message(self.message, self.private_key)
         
-        # LEARN: For 2048-bit RSA, signature is 256 bytes
         self.assertEqual(len(signature), 256)
     
     def test_signature_verification_success(self):
@@ -61,7 +60,6 @@ class TestSignatureBasic(unittest.TestCase):
         
         signature = sign_message(self.message, self.private_key)
         
-        # LEARN: Signature should only verify with the matching public key
         is_valid = verify_signature(self.message, signature, other_public)
         self.assertFalse(is_valid)
     
@@ -70,7 +68,6 @@ class TestSignatureBasic(unittest.TestCase):
         signature = sign_message(self.message, self.private_key)
         tampered_message = b"Tampered message"
         
-        # LEARN: This is the integrity property of signatures
         is_valid = verify_signature(tampered_message, signature, self.public_key)
         self.assertFalse(is_valid)
     
@@ -153,7 +150,6 @@ class TestSignatureWithTimestamp(unittest.TestCase):
             self.public_key
         )
         
-        # LEARN: Timestamp is bound to the signature - can't change it
         self.assertFalse(is_valid)
 
 
@@ -226,7 +222,6 @@ class TestSignedPackage(unittest.TestCase):
         
         is_valid, msg = verify_signed_package(package, self.public_key)
         
-        # LEARN: Non-repudiation - can't change who sent the message
         self.assertFalse(is_valid)
 
 
@@ -249,7 +244,6 @@ class TestNonRepudiation(unittest.TestCase):
         is_alice_signature = verify_signature(message, alice_signature, self.alice_public)
         is_bob_signature = verify_signature(message, alice_signature, self.bob_public)
         
-        # LEARN: Only verifies with Alice's key - proves she signed it
         self.assertTrue(is_alice_signature)
         self.assertFalse(is_bob_signature)
     
@@ -261,7 +255,6 @@ class TestNonRepudiation(unittest.TestCase):
         bob_forged_signature = sign_message(message, self.bob_private)
         
         # Verification with Alice's public key should fail
-        # LEARN: Only Alice's private key can create valid signatures
         is_valid = verify_signature(message, bob_forged_signature, self.alice_public)
         self.assertFalse(is_valid)
 
