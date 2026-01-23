@@ -262,6 +262,51 @@ def pem_string_to_public_key(pem_string: str) -> rsa.RSAPublicKey:
     )
 
 
+def private_key_to_pem_string(private_key: rsa.RSAPrivateKey, password: Optional[bytes] = None) -> str:
+    """
+    Convert a private key to a PEM string.
+    
+    Note: For the web application, we return unencrypted keys for browser storage.
+    In production, consider more secure key storage methods.
+    
+    Args:
+        private_key: RSA private key object
+        password: Optional password for encryption
+        
+    Returns:
+        PEM-encoded private key as a string
+    """
+    if password:
+        encryption = serialization.BestAvailableEncryption(password)
+    else:
+        encryption = serialization.NoEncryption()
+    
+    pem_data = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=encryption
+    )
+    return pem_data.decode('utf-8')
+
+
+def pem_string_to_private_key(pem_string: str, password: Optional[bytes] = None) -> rsa.RSAPrivateKey:
+    """
+    Convert a PEM string back to a private key object.
+    
+    Args:
+        pem_string: PEM-encoded private key string
+        password: Password if the key is encrypted
+        
+    Returns:
+        RSA private key object
+    """
+    return serialization.load_pem_private_key(
+        pem_string.encode('utf-8'),
+        password=password,
+        backend=default_backend()
+    )
+
+
 # =============================================================================
 # X.509 CERTIFICATE OPERATIONS
 # =============================================================================

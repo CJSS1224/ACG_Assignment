@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureChat - ST2504 Applied Cryptography</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Auth Container (Login/Register) -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <i class="fas fa-shield-alt"></i>
+                <h1>SecureChat</h1>
+                <p>End-to-End Encrypted Messaging</p>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <h2>Login</h2>
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+                <p class="auth-switch">
+                    Don't have an account? <a href="#" id="show-register">Register</a>
+                </p>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <h2>Register</h2>
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" placeholder="Choose username (min 3 chars)" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" placeholder="Choose password (min 6 chars)" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm">Confirm Password</label>
+                    <input type="password" id="register-confirm" placeholder="Confirm password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Register
+                </button>
+                <p class="auth-switch">
+                    Already have an account? <a href="#" id="show-login">Login</a>
+                </p>
+            </form>
+            
+            <div class="auth-footer">
+                <p><i class="fas fa-lock"></i> ST2504 Applied Cryptography Assignment</p>
+                <p class="crypto-info">AES-256 • RSA-2048 • HMAC-SHA256</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Container -->
+    <div id="chat-container" class="chat-container hidden">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span id="current-username">Username</span>
+                </div>
+                <div class="header-actions">
+                    <button id="new-chat-btn" class="btn-icon" title="New Chat">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="logout-btn" class="btn-icon" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-list" id="chat-list">
+                <!-- Chat items will be added dynamically -->
+                <div class="empty-chats">
+                    <i class="fas fa-comments"></i>
+                    <p>No chats yet</p>
+                    <button id="start-chat-btn" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Start a Chat
+                    </button>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="connection-status" id="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connecting...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Chat Area -->
+        <div class="chat-main">
+            <!-- No Chat Selected -->
+            <div id="no-chat-selected" class="no-chat-selected">
+                <div class="welcome-message">
+                    <i class="fas fa-comments"></i>
+                    <h2>Welcome to SecureChat</h2>
+                    <p>Select a chat or start a new conversation</p>
+                    <div class="security-badges">
+                        <div class="badge">
+                            <i class="fas fa-lock"></i>
+                            <span>End-to-End Encrypted</span>
+                        </div>
+                        <div class="badge">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>RSA Digital Signatures</span>
+                        </div>
+                        <div class="badge">
+                            <i class="fas fa-check-double"></i>
+                            <span>HMAC Integrity</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Chat -->
+            <div id="active-chat" class="active-chat hidden">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div class="chat-user-info">
+                        <div class="avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="user-details">
+                            <span class="username" id="chat-username">Username</span>
+                            <span class="status" id="chat-status">Online</span>
+                        </div>
+                    </div>
+                    <div class="chat-actions">
+                        <button class="btn-icon" id="chat-info-btn" title="Chat Info">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Messages Area -->
+                <div class="messages-container" id="messages-container">
+                    <!-- Messages will be added dynamically -->
+                </div>
+                
+                <!-- Typing Indicator -->
+                <div class="typing-indicator hidden" id="typing-indicator">
+                    <span></span><span></span><span></span>
+                    <p>typing...</p>
+                </div>
+                
+                <!-- Message Input -->
+                <div class="message-input-container">
+                    <div class="message-input-wrapper">
+                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                        <button id="send-btn" class="btn-send" title="Send">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="encryption-notice">
+                        <i class="fas fa-lock"></i> Messages are end-to-end encrypted
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- New Chat Modal -->
+    <div id="new-chat-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus"></i> New Chat</h2>
+                <button class="btn-close" id="close-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Select a user to start chatting:</p>
+                <div class="online-users-list" id="online-users-list">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i> Loading users...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Info Modal -->
+    <div id="chat-info-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-shield-alt"></i> Chat Security Info</h2>
+                <button class="btn-close" id="close-info-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="security-info">
+                    <div class="info-item">
+                        <i class="fas fa-key"></i>
+                        <div>
+                            <h4>Encryption</h4>
+                            <p>AES-256-CBC with unique key per message</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-signature"></i>
+                        <div>
+                            <h4>Digital Signature</h4>
+                            <p>RSA-2048 with SHA-256 (Non-repudiation)</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <h4>Integrity</h4>
+                            <p>HMAC-SHA256 verification</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-exchange-alt"></i>
+                        <div>
+                            <h4>Key Exchange</h4>
+                            <p>RSA-OAEP encrypted session keys</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="public-key-section">
+                    <h4><i class="fas fa-key"></i> Your Public Key</h4>
+                    <textarea id="my-public-key" readonly></textarea>
+                    <button class="btn btn-secondary" id="copy-key-btn">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+    
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
+    
+    <!-- Crypto Modules (order matters - dependencies first) -->
+    <script src="/js/crypto/utils.js"></script>
+    <script src="/js/crypto/aes.js"></script>
+    <script src="/js/crypto/rsa.js"></script>
+    <script src="/js/crypto/signature.js"></script>
+    <script src="/js/crypto/hmac.js"></script>
+    <script src="/js/crypto/keystore.js"></script>
+    <script src="/js/crypto/index.js"></script>
+    
+    <!-- App Modules -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/socket.js"></script>
+    <script src="/js/chat.js"></script>
+    
+    <!-- Main App (must be last) -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
