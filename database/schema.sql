@@ -2,6 +2,7 @@
 -- Run this script to set up the MySQL database
 
 -- Create database
+DROP DATABASE IF EXISTS secure_messaging;
 CREATE DATABASE IF NOT EXISTS secure_messaging;
 USE secure_messaging;
 
