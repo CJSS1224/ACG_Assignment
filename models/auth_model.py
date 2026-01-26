@@ -1,7 +1,7 @@
 """
-Authentication Service - ST2504 Applied Cryptography
+Authentication Model - ST2504 Applied Cryptography
 
-This module handles user authentication:
+This model handles user authentication:
 - Password hashing with bcrypt (Solomon)
 - JWT token generation and verification (Solomon)
 
@@ -21,7 +21,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class AuthService:
+class AuthModel:
+    """
+    Authentication model providing:
+    - Secure password hashing with bcrypt
+    - JWT token generation and verification
+    """
     
     # JWT configuration
     JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
@@ -31,20 +36,19 @@ class AuthService:
     # bcrypt configuration
     BCRYPT_ROUNDS = 12  # Cost factor
     
-    def __init__(self, db_service=None):
-        self.db = db_service
-    
     # ==========================================================================
     # PASSWORD HASHING - Solomon
     # ==========================================================================
     
     def hash_password(self, password: str) -> str:
+        """Hash a password using bcrypt."""
         password_bytes = password.encode('utf-8')
         salt = bcrypt.gensalt(rounds=self.BCRYPT_ROUNDS)
         hashed = bcrypt.hashpw(password_bytes, salt)
         return hashed.decode('utf-8')
     
     def verify_password(self, password: str, password_hash: str) -> bool:
+        """Verify a password against its hash."""
         try:
             password_bytes = password.encode('utf-8')
             hash_bytes = password_hash.encode('utf-8')
@@ -57,6 +61,7 @@ class AuthService:
     # ==========================================================================
     
     def generate_token(self, user_id: int, username: str) -> str:
+        """Generate a JWT token for authenticated user."""
         payload = {
             'id': user_id,
             'username': username,
@@ -68,6 +73,7 @@ class AuthService:
         return token
     
     def verify_token(self, token: str) -> Optional[dict]:
+        """Verify and decode a JWT token."""
         try:
             payload = jwt.decode(
                 token,

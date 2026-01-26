@@ -1,7 +1,7 @@
 """
-Database Service - ST2504 Applied Cryptography
+Database Model - ST2504 Applied Cryptography
 
-This module handles all database operations:
+This model handles all database operations:
 - User management (Akash)
 - Message storage (Akash)
 - Chat management (Charles)
@@ -14,19 +14,38 @@ import os
 import mysql.connector
 from mysql.connector import pooling
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-class DatabaseService:
+class DatabaseModel:
+    """
+    Database model providing:
+    - Connection pooling for performance
+    - User CRUD operations
+    - Message storage and retrieval
+    - Chat management
+    """
+    
+    _instance = None
+    
+    def __new__(cls):
+        """Singleton pattern to ensure single database pool."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self):
+        if self._initialized:
+            return
         self.pool = None
         self._init_pool()
+        self._initialized = True
     
     def _init_pool(self):
+        """Create connection pool."""
         try:
             self.pool = pooling.MySQLConnectionPool(
                 pool_name="securechat_pool",
@@ -43,7 +62,8 @@ class DatabaseService:
             raise
     
     def _execute(self, query: str, params: tuple = None,
-        fetch_one: bool = False, fetch_all: bool = False) -> Any:
+                 fetch_one: bool = False, fetch_all: bool = False) -> Any:
+        """Execute a database query."""
         conn = None
         cursor = None
         try:
@@ -73,26 +93,34 @@ class DatabaseService:
     # ==========================================================================
     
     def create_user(self, username: str, password_hash: str,
-        public_key: str = None) -> Optional[int]:
+                    public_key: str = None, encrypted_private_key: str = None,
+                    private_key_iv: str = None, private_key_salt: str = None) -> Optional[int]:
+        """Create a new user with encrypted private key."""
         query = """
-            INSERT INTO users (username, password_hash, public_key)
-            VALUES (%s, %s, %s)
+            INSERT INTO users (username, password_hash, public_key, 
+                             encrypted_private_key, private_key_iv, private_key_salt)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """
         try:
-            return self._execute(query, (username, password_hash, public_key))
+            return self._execute(query, (username, password_hash, public_key,
+                                        encrypted_private_key, private_key_iv, private_key_salt))
         except Exception as e:
             if 'Duplicate entry' in str(e):
                 return None
             raise
     
     def get_user_by_username(self, username: str) -> Optional[Dict]:
+        """Get user by username (includes encrypted private key data)."""
         query = """
-            SELECT id, username, password_hash, public_key, created_at, last_login
+            SELECT id, username, password_hash, public_key, 
+                   encrypted_private_key, private_key_iv, private_key_salt,
+                   created_at, last_login
             FROM users WHERE username = %s
         """
         return self._execute(query, (username,), fetch_one=True)
     
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
+        """Get user by ID."""
         query = """
             SELECT id, username, public_key, created_at, last_login
             FROM users WHERE id = %s
@@ -100,10 +128,12 @@ class DatabaseService:
         return self._execute(query, (user_id,), fetch_one=True)
     
     def update_last_login(self, user_id: int) -> None:
+        """Update user's last login timestamp."""
         query = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = %s"
         self._execute(query, (user_id,))
     
     def get_all_users(self, exclude_user_id: int = None) -> List[Dict]:
+        """Get all users, optionally excluding one."""
         if exclude_user_id:
             query = """
                 SELECT id, username, public_key FROM users 
@@ -119,9 +149,10 @@ class DatabaseService:
     # ==========================================================================
     
     def store_message(self, sender_id: int, recipient_id: int,
-        encrypted_payload: str, encrypted_key: str,
-        encrypted_key_sender: str, iv: str,
-        signature: str, hmac: str) -> int:
+                      encrypted_payload: str, encrypted_key: str,
+                      encrypted_key_sender: str, iv: str,
+                      signature: str, hmac: str) -> int:
+        """Store an encrypted message."""
         query = """
             INSERT INTO messages 
             (sender_id, recipient_id, encrypted_payload, encrypted_key, 
@@ -134,7 +165,8 @@ class DatabaseService:
         ))
     
     def get_chat_messages(self, user1_id: int, user2_id: int,
-        limit: int = 100) -> List[Dict]:
+                          limit: int = 100) -> List[Dict]:
+        """Get messages between two users."""
         query = """
             SELECT id, sender_id, recipient_id, encrypted_payload, 
                    encrypted_key, encrypted_key_sender, iv, signature, 
@@ -156,6 +188,7 @@ class DatabaseService:
     # ==========================================================================
     
     def get_or_create_chat(self, user1_id: int, user2_id: int) -> int:
+        """Get existing chat or create new one between two users."""
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
         
@@ -178,6 +211,7 @@ class DatabaseService:
         return self._execute(query, (user1_id, user2_id))
     
     def get_user_chats(self, user_id: int) -> List[Dict]:
+        """Get all chats for a user."""
         query = """
             SELECT 
                 c.id as chat_id,
@@ -208,6 +242,7 @@ class DatabaseService:
         ) or []
     
     def update_chat_timestamp(self, user1_id: int, user2_id: int) -> None:
+        """Update last message timestamp for a chat."""
         query = """
             UPDATE chats 
             SET last_message_at = CURRENT_TIMESTAMP

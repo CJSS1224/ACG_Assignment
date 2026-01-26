@@ -2,16 +2,20 @@
 -- Run this script to set up the MySQL database
 
 -- Create database
+DROP DATABASE IF EXISTS secure_messaging;
 CREATE DATABASE IF NOT EXISTS secure_messaging;
 USE secure_messaging;
 
 -- Users table
--- Stores registered users with their credentials and RSA public keys
+-- Stores registered users with their credentials and RSA keys
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,       -- bcrypt hashed password (Member 1)
-    public_key TEXT,                            -- RSA public key in PEM format (Member 6)
+    password_hash VARCHAR(255) NOT NULL,       -- bcrypt hashed password (Solomon)
+    public_key TEXT,                            -- RSA public key in PEM format (Denise)
+    encrypted_private_key TEXT,                 -- AES-encrypted RSA private key (Denise)
+    private_key_iv VARCHAR(64),                 -- IV for private key encryption (Denise)
+    private_key_salt VARCHAR(64),               -- Salt for key derivation (Denise)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     INDEX idx_username (username)

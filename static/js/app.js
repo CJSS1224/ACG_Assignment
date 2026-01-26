@@ -152,13 +152,6 @@ async function handleLogin() {
         return;
     }
 
-    // Check if we have a private key stored for this user
-    const storedPrivateKey = localStorage.getItem('privateKey');
-    if (!storedPrivateKey) {
-        showToast('No private key found. Please register first.', 'error');
-        return;
-    }
-
     try {
         const response = await fetch('/api/login', {
             method: 'POST',
@@ -173,13 +166,20 @@ async function handleLogin() {
             return;
         }
 
+        // Check if server returned private key
+        if (!data.private_key) {
+            showToast('Failed to retrieve private key from server', 'error');
+            return;
+        }
+
         // Store session
         App.token = data.token;
         App.user = data.user;
-        App.privateKey = storedPrivateKey;
+        App.privateKey = data.private_key;  // Get from server response
         
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('loggedInUser', JSON.stringify(data.user));
+        localStorage.setItem('privateKey', data.private_key);  // Store locally for session
 
         showToast('Login successful!', 'success');
         showChatInterface();
