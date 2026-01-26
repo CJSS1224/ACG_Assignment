@@ -69,7 +69,7 @@ class DatabaseService:
                 conn.close()
     
     # ==========================================================================
-    # USER OPERATIONS - Member 1
+    # USER OPERATIONS - Akash
     # ==========================================================================
     
     def create_user(self, username: str, password_hash: str,
@@ -115,7 +115,7 @@ class DatabaseService:
             return self._execute(query, fetch_all=True) or []
     
     # ==========================================================================
-    # MESSAGE OPERATIONS - Member 1
+    # MESSAGE OPERATIONS - Akash
     # ==========================================================================
     
     def store_message(self, sender_id: int, recipient_id: int,
@@ -152,7 +152,7 @@ class DatabaseService:
         ) or []
     
     # ==========================================================================
-    # CHAT OPERATIONS - Member 1
+    # CHAT OPERATIONS - Charles
     # ==========================================================================
     
     def get_or_create_chat(self, user1_id: int, user2_id: int) -> int:

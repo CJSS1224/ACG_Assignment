@@ -29,13 +29,13 @@ class AuthService:
     JWT_EXPIRY_HOURS = 24
     
     # bcrypt configuration
-    BCRYPT_ROUNDS = 12  # Cost factor (higher = slower but more secure)
+    BCRYPT_ROUNDS = 12  # Cost factor
     
     def __init__(self, db_service=None):
         self.db = db_service
     
     # ==========================================================================
-    # PASSWORD HASHING - Member 1
+    # PASSWORD HASHING - Solomon
     # ==========================================================================
     
     def hash_password(self, password: str) -> str:
@@ -53,7 +53,7 @@ class AuthService:
             return False
     
     # ==========================================================================
-    # JWT TOKEN MANAGEMENT - Member 1
+    # JWT TOKEN MANAGEMENT - Solomon
     # ==========================================================================
     
     def generate_token(self, user_id: int, username: str) -> str:
