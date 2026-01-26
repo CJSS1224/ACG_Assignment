@@ -10,12 +10,13 @@ All cryptographic operations are performed in Python:
 - RSA key management (Member 6)
 
 Team Members:
-- Member 1: Server & Authentication
-- Member 2: Client Interface  
-- Member 3: AES Encryption
-- Member 4: HMAC Integrity
-- Member 5: Digital Signatures
-- Member 6: Key Management
+- Solomon: Server & Authentication
+- Charles: Client Interface  
+- Charles: AES Encryption
+- Amir: HMAC Integrity
+- Yong Cheng: Digital Signatures
+- Denise: Key Management
+- Akash: Database & Message Storage
 """
 
 import os

@@ -2,8 +2,8 @@
 Authentication Service - ST2504 Applied Cryptography
 
 This module handles user authentication:
-- Password hashing with bcrypt (Member 1)
-- JWT token generation and verification (Member 1)
+- Password hashing with bcrypt (Solomon)
+- JWT token generation and verification (Solomon)
 
 Security Features:
 - Passwords are never stored in plaintext

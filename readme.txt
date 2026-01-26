@@ -85,12 +85,13 @@ Message Decryption Flow:
 
 TEAM MEMBERS
 ------------
-- Member 1: Server & Authentication (app.py, auth_service.py, database_service.py)
-- Member 2: Client Interface (index.html, style.css, app.js)
-- Member 3: AES Encryption (crypto_service.py - AES section)
-- Member 4: HMAC Integrity (crypto_service.py - HMAC section)
-- Member 5: Digital Signatures (crypto_service.py - Signature section)
-- Member 6: Key Management (crypto_service.py - RSA section)
+- Solomon: Server & Authentication (app.py, auth_service.py, database_service.py)
+- Charles: Client Interface (index.html, style.css, app.js)
+- Charles: AES Encryption (crypto_service.py - AES section)
+- Amir: HMAC Integrity (crypto_service.py - HMAC section)
+- Yong Cheng: Digital Signatures (crypto_service.py - Signature section)
+- Denise: Key Management (crypto_service.py - RSA section)
+- Akash: Database & Message Storage
 
 
 USAGE

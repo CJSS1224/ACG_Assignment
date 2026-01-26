@@ -4,7 +4,7 @@
  * This is a MINIMAL JavaScript file for UI interactions only.
  * All cryptographic operations are handled by Python on the server.
  * 
- * Member 2: Client Interface
+ * Charles
  */
 
 // =============================================================================

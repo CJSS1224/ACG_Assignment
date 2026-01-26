@@ -2,9 +2,9 @@
 Database Service - ST2504 Applied Cryptography
 
 This module handles all database operations:
-- User management (Member 1)
-- Message storage (Member 1)
-- Chat management (Member 1)
+- User management (Akash)
+- Message storage (Akash)
+- Chat management (Charles)
 
 Database: MySQL
 All messages are stored encrypted (at-rest encryption).

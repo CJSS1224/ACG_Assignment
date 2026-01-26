@@ -2,10 +2,10 @@
 Cryptographic Service - ST2504 Applied Cryptography
 
 This module provides all cryptographic operations for SecureChat:
-- AES-256-CTR Encryption/Decryption (Member 3)
-- HMAC-SHA256 Integrity (Member 4)
-- RSA Digital Signatures (Member 5)
-- RSA Key Management (Member 6)
+- AES-256-CTR Encryption/Decryption (Charles)
+- HMAC-SHA256 Integrity (Amir)
+- RSA Digital Signatures (Yong Cheng)
+- RSA Key Management (Denise)
 
 All cryptographic operations are implemented in Python using the 'cryptography' library.
 """
