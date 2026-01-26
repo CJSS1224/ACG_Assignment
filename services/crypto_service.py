@@ -49,7 +49,7 @@ class CryptoService:
         return os.urandom(length)
     
     # ==========================================================================
-    # AES ENCRYPTION - Member 3
+    # AES ENCRYPTION - Charles
     # ==========================================================================
     
     def generate_aes_key(self) -> bytes:
@@ -89,7 +89,7 @@ class CryptoService:
         return plaintext_bytes.decode('utf-8')
     
     # ==========================================================================
-    # HMAC INTEGRITY - Member 4
+    # HMAC INTEGRITY - Amir
     # ==========================================================================
     
     def generate_hmac_key(self) -> bytes:
@@ -109,7 +109,7 @@ class CryptoService:
             return False
     
     # ==========================================================================
-    # RSA DIGITAL SIGNATURES - Member 5
+    # RSA DIGITAL SIGNATURES - Yong Cheng
     # ==========================================================================
     
     def sign_message(self, message: str, private_key_pem: str) -> str:
@@ -150,7 +150,7 @@ class CryptoService:
             return False
     
     # ==========================================================================
-    # RSA KEY MANAGEMENT - Member 6
+    # RSA KEY MANAGEMENT - Denise
     # ==========================================================================
     
     def generate_rsa_keypair(self) -> Tuple[str, str]:
@@ -216,7 +216,7 @@ class CryptoService:
     # ==========================================================================
     
     def encrypt_message(self, plaintext: str, recipient_public_key: str, 
-                        sender_private_key: str, sender_public_key: str) -> dict:
+        sender_private_key: str, sender_public_key: str) -> dict:
         aes_key = self.generate_aes_key()
         
         ciphertext_b64, nonce_b64 = self.aes_encrypt(plaintext, aes_key)
@@ -241,7 +241,7 @@ class CryptoService:
         }
     
     def decrypt_message(self, encrypted_data: dict, private_key: str, 
-                        sender_public_key: str = None) -> dict:
+        sender_public_key: str = None) -> dict:
         try:
             aes_key = self.rsa_decrypt(encrypted_data['encrypted_key'], private_key)
         except Exception:

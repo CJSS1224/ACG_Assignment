@@ -43,7 +43,7 @@ class DatabaseService:
             raise
     
     def _execute(self, query: str, params: tuple = None,
-                 fetch_one: bool = False, fetch_all: bool = False) -> Any:
+        fetch_one: bool = False, fetch_all: bool = False) -> Any:
         conn = None
         cursor = None
         try:
@@ -73,7 +73,7 @@ class DatabaseService:
     # ==========================================================================
     
     def create_user(self, username: str, password_hash: str,
-                    public_key: str = None) -> Optional[int]:
+        public_key: str = None) -> Optional[int]:
         query = """
             INSERT INTO users (username, password_hash, public_key)
             VALUES (%s, %s, %s)
@@ -119,9 +119,9 @@ class DatabaseService:
     # ==========================================================================
     
     def store_message(self, sender_id: int, recipient_id: int,
-                      encrypted_payload: str, encrypted_key: str,
-                      encrypted_key_sender: str, iv: str,
-                      signature: str, hmac: str) -> int:
+        encrypted_payload: str, encrypted_key: str,
+        encrypted_key_sender: str, iv: str,
+        signature: str, hmac: str) -> int:
         query = """
             INSERT INTO messages 
             (sender_id, recipient_id, encrypted_payload, encrypted_key, 
@@ -134,7 +134,7 @@ class DatabaseService:
         ))
     
     def get_chat_messages(self, user1_id: int, user2_id: int,
-                          limit: int = 100) -> List[Dict]:
+        limit: int = 100) -> List[Dict]:
         query = """
             SELECT id, sender_id, recipient_id, encrypted_payload, 
                    encrypted_key, encrypted_key_sender, iv, signature, 
