@@ -1,23 +1,23 @@
-# ST2504 Applied Cryptography - Web Application
-# Flask and extensions
-flask>=3.0.0
-flask-socketio>=5.3.0
-flask-cors>=4.0.0
+# ST2504 Applied Cryptography - SecureChat Dependencies
+
+# Web Framework
+flask==3.0.0
+flask-socketio==5.3.6
+flask-cors==4.0.0
+
+# WebSocket
+python-socketio==5.10.0
+eventlet==0.33.3
 
 # Database
-mysql-connector-python>=8.0.0
-PyMySQL>=1.1.0
+mysql-connector-python==8.2.0
 
-# Authentication
-PyJWT>=2.8.0
-bcrypt>=4.1.0
+# Cryptography (Member 3, 4, 5, 6)
+cryptography==41.0.7
+bcrypt==4.1.2
 
-# Cryptography (existing requirement)
-cryptography>=41.0.0
+# Authentication (Member 1)
+PyJWT==2.8.0
 
-# WebSocket support
-python-socketio>=5.10.0
-eventlet>=0.34.0
-
-# Environment variables
-python-dotenv>=1.0.0
+# Environment
+python-dotenv==1.0.0

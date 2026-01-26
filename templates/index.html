@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureChat - ST2504 Applied Cryptography</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -255,23 +255,7 @@
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
     
-    <!-- Crypto Modules (order matters - dependencies first) -->
-    <script src="/js/crypto/utils.js"></script>
-    <script src="/js/crypto/aes.js"></script>
-    <script src="/js/crypto/rsa.js"></script>
-    <script src="/js/crypto/signature.js"></script>
-    <script src="/js/crypto/hmac.js"></script>
-    <script src="/js/crypto/keystore.js"></script>
-    <script src="/js/crypto/index.js"></script>
-    
-    <!-- App Modules -->
-    <script src="/js/ui.js"></script>
-    <script src="/js/api.js"></script>
-    <script src="/js/auth.js"></script>
-    <script src="/js/socket.js"></script>
-    <script src="/js/chat.js"></script>
-    
-    <!-- Main App (must be last) -->
-    <script src="/js/app.js"></script>
+    <!-- Main App (all crypto is done in Python on server) -->
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
