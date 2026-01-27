@@ -137,13 +137,18 @@ def register_socket_events(socketio):
         # Confirm to sender
         emit('message_sent', {'message_id': result['message_id']})
         
-        # Forward to recipient if online
+        # Forward to recipient if online - send ENCRYPTED data (not plaintext)
         if connections.is_user_online(recipient_id):
             emit('new_message', {
                 'message_id': result['message_id'],
                 'sender_id': sender_id,
                 'sender_username': result['sender']['username'],
-                'plaintext': result['plaintext'],
+                'sender_public_key': result['sender_public_key'],
+                # Encrypted payload for client-side decryption
+                'encrypted_payload': result['encrypted_payload'],
+                'encrypted_key': result['encrypted_key'],
+                'iv': result['iv'],
+                'signature': result['signature'],
                 'timestamp': None
             }, room=f"user_{recipient_id}")
     

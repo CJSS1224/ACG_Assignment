@@ -62,68 +62,45 @@ class ChatController:
     def get_chat_messages(self, current_user_id: int, other_user_id: int, 
                           private_key: str = None) -> tuple:
         """
-        Get and optionally decrypt messages for a chat.
+        Get messages for a chat - returns encrypted data for client-side decryption.
         
         Args:
             current_user_id: ID of current user
             other_user_id: ID of chat partner
-            private_key: Private key for decryption (optional)
+            private_key: Private key for decryption (optional, for backward compatibility)
         
         Returns:
             tuple of (list, status_code)
         """
         messages = self.db.get_chat_messages(current_user_id, other_user_id)
         
+        # Get sender's public key for signature verification
+        other_user = self.db.get_user_by_id(other_user_id)
+        other_public_key = other_user['public_key'] if other_user else None
+        
         result_messages = []
         for msg in messages:
-            try:
-                if private_key:
-                    # Get sender's public key for signature verification
-                    sender_public_key = None
-                    if msg['sender_id'] != current_user_id:
-                        sender = self.db.get_user_by_id(msg['sender_id'])
-                        sender_public_key = sender['public_key'] if sender else None
-                    
-                    # Decrypt message (Charles)
-                    decrypted = self.crypto.decrypt_message(
-                        encrypted_data={
-                            'encrypted_payload': msg['encrypted_payload'],
-                            'encrypted_key': msg['encrypted_key'],
-                            'encrypted_key_sender': msg.get('encrypted_key_sender'),
-                            'iv': msg['iv'],
-                            'signature': msg['signature']
-                        },
-                        private_key=private_key,
-                        sender_public_key=sender_public_key
-                    )
-                    
-                    result_messages.append({
-                        'id': msg['id'],
-                        'sender_id': msg['sender_id'],
-                        'recipient_id': msg['recipient_id'],
-                        'plaintext': decrypted['plaintext'],
-                        'signature_valid': decrypted['signature_valid'],
-                        'timestamp': msg['timestamp'].isoformat() if msg['timestamp'] else None
-                    })
-                else:
-                    # No private key - return encrypted indicator
-                    result_messages.append({
-                        'id': msg['id'],
-                        'sender_id': msg['sender_id'],
-                        'recipient_id': msg['recipient_id'],
-                        'encrypted': True,
-                        'timestamp': msg['timestamp'].isoformat() if msg['timestamp'] else None
-                    })
-                    
-            except Exception as e:
-                print(f"[ERROR] Failed to decrypt message {msg['id']}: {e}")
-                result_messages.append({
-                    'id': msg['id'],
-                    'sender_id': msg['sender_id'],
-                    'recipient_id': msg['recipient_id'],
-                    'plaintext': '[Decryption failed]',
-                    'error': True,
-                    'timestamp': msg['timestamp'].isoformat() if msg['timestamp'] else None
-                })
+            # Determine which encrypted_key to use based on who is requesting
+            # If current user is sender, use encrypted_key_sender
+            # If current user is recipient, use encrypted_key
+            if msg['sender_id'] == current_user_id:
+                encrypted_key = msg.get('encrypted_key_sender') or msg['encrypted_key']
+                sender_public_key = None  # Own message, no need to verify
+            else:
+                encrypted_key = msg['encrypted_key']
+                sender_public_key = other_public_key
+            
+            result_messages.append({
+                'id': msg['id'],
+                'sender_id': msg['sender_id'],
+                'recipient_id': msg['recipient_id'],
+                # Encrypted data for client-side decryption
+                'encrypted_payload': msg['encrypted_payload'],
+                'encrypted_key': encrypted_key,
+                'iv': msg['iv'],
+                'signature': msg['signature'],
+                'sender_public_key': sender_public_key,
+                'timestamp': msg['timestamp'].isoformat() if msg['timestamp'] else None
+            })
         
         return result_messages, 200

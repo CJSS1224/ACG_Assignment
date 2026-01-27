@@ -83,8 +83,13 @@ class MessageController:
                 'success': True,
                 'message_id': message_id,
                 'sender': sender,
+                'sender_public_key': sender['public_key'],
                 'recipient_id': recipient_id,
-                'plaintext': plaintext
+                # Return encrypted data for transit (client will decrypt)
+                'encrypted_payload': encrypted_data['encrypted_payload'],
+                'encrypted_key': encrypted_data['encrypted_key'],
+                'iv': encrypted_data['iv'],
+                'signature': encrypted_data['signature']
             }
             
         except Exception as e:
