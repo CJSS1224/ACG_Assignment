@@ -3,7 +3,7 @@
  * 
  * API calls for authentication endpoints.
  * 
- * Charles
+ * Solomon
  */
 
 import { CONFIG } from '../core/config.js';

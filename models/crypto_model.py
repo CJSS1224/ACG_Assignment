@@ -192,6 +192,8 @@ class CryptoModel:
         
         return private_key_pem, public_key_pem
     
+    # FOR ENCRYPTED PRIVATE KEY ONLY
+
     def rsa_encrypt(self, data: bytes, public_key_pem: str) -> str:
         """Encrypt data using RSA-OAEP."""
         public_key = serialization.load_pem_public_key(
