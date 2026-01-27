@@ -1,8 +1,14 @@
 /**
  * ST2504 Applied Cryptography - SecureChat Client
  * 
- * This is a MINIMAL JavaScript file for UI interactions only.
- * All cryptographic operations are handled by Python on the server.
+ * Client-side JavaScript for UI interactions and message decryption.
+ * - Server handles encryption (Python)
+ * - Client handles decryption (JavaScript Web Crypto API)
+ * 
+ * This provides TRUE end-to-end encryption:
+ * - Messages are encrypted in transit (WebSocket carries encrypted data)
+ * - Messages are encrypted at rest (database stores encrypted data)
+ * - Only the recipient can decrypt (using their private key)
  * 
  * Charles
  */
@@ -399,26 +405,46 @@ async function loadMessages(userId) {
     container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
 
     try {
-        // POST request with private key for server-side decryption
+        // Fetch encrypted messages from server
         const response = await fetch(`/api/chats/${userId}/messages`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${App.token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                private_key: App.privateKey
-            })
+            body: JSON.stringify({})  // No need to send private key anymore
         });
 
         if (response.ok) {
             const messages = await response.json();
             container.innerHTML = '';
 
+            // Decrypt each message on client-side
             for (const msg of messages) {
                 const isSent = msg.sender_id === App.user.id;
-                const text = msg.plaintext || '[Encrypted]';
-                renderMessage(msg, isSent, text);
+                
+                if (msg.encrypted_payload && App.privateKey) {
+                    try {
+                        // Client-side decryption
+                        const decrypted = await CryptoModule.decryptMessage(
+                            {
+                                encrypted_payload: msg.encrypted_payload,
+                                encrypted_key: msg.encrypted_key,
+                                iv: msg.iv,
+                                signature: msg.signature
+                            },
+                            App.privateKey,
+                            msg.sender_public_key  // For signature verification
+                        );
+                        
+                        renderMessage(msg, isSent, decrypted.plaintext, decrypted.signatureValid);
+                    } catch (decryptError) {
+                        console.error('[APP] Failed to decrypt message:', msg.id, decryptError);
+                        renderMessage(msg, isSent, '[Decryption failed]', false);
+                    }
+                } else {
+                    renderMessage(msg, isSent, '[No encryption data]');
+                }
             }
 
             container.scrollTop = container.scrollHeight;
@@ -429,15 +455,22 @@ async function loadMessages(userId) {
     }
 }
 
-function renderMessage(msgData, isSent, plaintext = null) {
+function renderMessage(msgData, isSent, plaintext = null, signatureValid = null) {
     const container = document.getElementById('messages-container');
 
-    // If plaintext not provided, we need to decrypt on client
-    // For now, show encrypted indicator (decryption will be done by Python API)
     let displayText = plaintext || '[Encrypted - loading...]';
-    let signatureStatus = isSent 
-        ? '<i class="fas fa-check-circle verified" title="Sent"></i>'
-        : '<i class="fas fa-lock" title="Encrypted"></i>';
+    
+    // Signature/verification status icon
+    let signatureStatus;
+    if (isSent) {
+        signatureStatus = '<i class="fas fa-check-circle verified" title="Sent"></i>';
+    } else if (signatureValid === true) {
+        signatureStatus = '<i class="fas fa-check-double verified" title="Signature verified" style="color: #4CAF50;"></i>';
+    } else if (signatureValid === false) {
+        signatureStatus = '<i class="fas fa-exclamation-triangle" title="Signature invalid" style="color: #ff9800;"></i>';
+    } else {
+        signatureStatus = '<i class="fas fa-lock" title="Encrypted"></i>';
+    }
 
     const time = msgData.timestamp 
         ? new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -568,7 +601,7 @@ function connectWebSocket() {
     });
 }
 
-function handleIncomingMessage(data) {
+async function handleIncomingMessage(data) {
     if (!data.timestamp) {
         data.timestamp = new Date().toISOString();
     }
@@ -582,15 +615,40 @@ function handleIncomingMessage(data) {
         renderChatList();
     }
 
-    // Cache public key
+    // Cache sender's public key for signature verification
     if (data.sender_public_key) {
         App.publicKeys.set(data.sender_id, data.sender_public_key);
     }
 
-    // If chat is open, show message
+    // If chat is open, decrypt and show message
     if (App.currentChat && App.currentChat.userId === data.sender_id) {
-        // For encrypted messages, show placeholder (decryption would happen here)
-        renderMessage(data, false, data.plaintext || '[Encrypted message]');
+        // Check if this is an encrypted message (has encrypted_payload)
+        if (data.encrypted_payload && App.privateKey) {
+            try {
+                // Client-side decryption using Web Crypto API
+                const senderPublicKey = App.publicKeys.get(data.sender_id) || data.sender_public_key;
+                const decrypted = await CryptoModule.decryptMessage(
+                    {
+                        encrypted_payload: data.encrypted_payload,
+                        encrypted_key: data.encrypted_key,
+                        iv: data.iv,
+                        signature: data.signature
+                    },
+                    App.privateKey,
+                    senderPublicKey
+                );
+                
+                renderMessage(data, false, decrypted.plaintext, decrypted.signatureValid);
+            } catch (error) {
+                console.error('[APP] Failed to decrypt message:', error);
+                renderMessage(data, false, '[Decryption failed]', false);
+            }
+        } else if (data.plaintext) {
+            // Fallback for plaintext (shouldn't happen with new flow)
+            renderMessage(data, false, data.plaintext);
+        } else {
+            renderMessage(data, false, '[Encrypted message - cannot decrypt]');
+        }
         
         const container = document.getElementById('messages-container');
         container.scrollTop = container.scrollHeight;
