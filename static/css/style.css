@@ -896,3 +896,23 @@ body {
         display: none;
     }
 }
+
+/* Key Exchange Badges */
+.key-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-right: 5px;
+    font-weight: bold;
+}
+
+.key-badge.dh {
+    background: #9b59b6;
+    color: white;
+}
+
+.key-badge.rsa {
+    background: #3498db;
+    color: white;
+}
+

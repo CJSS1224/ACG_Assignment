@@ -10,9 +10,23 @@ A secure end-to-end encrypted messaging application.
 | Message Integrity | HMAC-SHA256 | Amir |
 | Digital Signatures | RSA-PKCS1v15 + SHA256 | Yong Cheng |
 | Key Management | RSA-2048 + RSA-OAEP | Denise |
+| Key Exchange | **Diffie-Hellman (2048-bit)** | Team |
 | Password Hashing | bcrypt (12 rounds) | Solomon |
 | Key Derivation | PBKDF2 (100k iterations) | Denise |
 | Authentication | JWT HS256 | Solomon |
+
+## Diffie-Hellman Key Exchange (NEW)
+
+When two users are both online:
+1. Each user generates a DH keypair on connection
+2. DH public keys are exchanged when opening a chat
+3. Both users compute the same shared secret: `g^(ab) mod p`
+4. Shared secret is used to derive AES key via HKDF
+5. Messages show **DH** badge (purple) or **RSA** badge (blue)
+
+**Benefits:**
+- **Forward Secrecy** - Past messages stay secure even if RSA keys are compromised
+- **Ephemeral Keys** - New DH keys generated each session
 
 ## File Structure
 

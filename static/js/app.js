@@ -19,7 +19,8 @@ const App = {
     currentChat: null,
     chats: new Map(),
     onlineUsers: new Map(),
-    publicKeys: new Map()
+    publicKeys: new Map(),
+    dhPublicKeys: new Map()  // Store DH public keys
 };
 
 // ==================== UTILITIES ====================
@@ -203,11 +204,15 @@ function connectSocket() {
         if (data.public_key) {
             App.publicKeys.set(data.user_id, data.public_key);
         }
+        if (data.dh_public_key) {
+            App.dhPublicKeys.set(data.user_id, data.dh_public_key);
+        }
         renderChatList();
     });
     
     App.socket.on('user_offline', (data) => {
         App.onlineUsers.delete(data.user_id);
+        App.dhPublicKeys.delete(data.user_id);
         renderChatList();
     });
     
@@ -218,8 +223,17 @@ function connectSocket() {
             if (u.public_key) {
                 App.publicKeys.set(u.id, u.public_key);
             }
+            if (u.dh_public_key) {
+                App.dhPublicKeys.set(u.id, u.dh_public_key);
+            }
         });
         renderChatList();
+    });
+    
+    // DH key exchange
+    App.socket.on('dh_complete', (data) => {
+        console.log('[DH] Key exchange complete with user', data.recipient_id);
+        showToast('Secure DH channel established');
     });
     
     // Messages
@@ -315,11 +329,27 @@ async function openChat(userId) {
         App.publicKeys.set(userId, App.currentChat.publicKey);
     }
     
+    // Initiate DH key exchange if they have a DH public key
+    const theirDHKey = App.dhPublicKeys.get(userId);
+    if (theirDHKey) {
+        App.socket.emit('dh_exchange', {
+            recipient_id: userId,
+            dh_public_key: theirDHKey
+        });
+        console.log('[DH] Initiating key exchange with user', userId);
+    }
+    
     // Update UI
     $('no-chat-selected').classList.add('hidden');
     $('active-chat').classList.remove('hidden');
     $('chat-username').textContent = App.currentChat.username;
-    $('chat-status').textContent = App.onlineUsers.has(userId) ? 'Online' : 'Offline';
+    
+    // Show DH status in chat header
+    const isOnline = App.onlineUsers.has(userId);
+    const hasDH = App.dhPublicKeys.has(userId);
+    let status = isOnline ? 'Online' : 'Offline';
+    if (hasDH) status += ' • DH Ready';
+    $('chat-status').textContent = status;
     
     renderChatList();
     await loadMessages(userId);
@@ -362,7 +392,7 @@ async function loadMessages(userId) {
     container.scrollTop = container.scrollHeight;
 }
 
-function renderMessage(text, isSent, signatureValid, timestamp) {
+function renderMessage(text, isSent, signatureValid, timestamp, keyExchange = null) {
     const container = $('messages-container');
     
     let icon = '';
@@ -376,6 +406,14 @@ function renderMessage(text, isSent, signatureValid, timestamp) {
         icon = '<i class="fas fa-lock" title="Encrypted"></i>';
     }
     
+    // Key exchange badge
+    let keyBadge = '';
+    if (keyExchange === 'DH') {
+        keyBadge = '<span class="key-badge dh" title="Diffie-Hellman Key Exchange">DH</span>';
+    } else if (keyExchange === 'RSA') {
+        keyBadge = '<span class="key-badge rsa" title="RSA Key Exchange">RSA</span>';
+    }
+    
     const time = timestamp ? new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 'Now';
     
     const div = document.createElement('div');
@@ -384,6 +422,7 @@ function renderMessage(text, isSent, signatureValid, timestamp) {
         <div class="message-content">${escapeHtml(text)}</div>
         <div class="message-meta">
             <span class="time">${time}</span>
+            ${keyBadge}
             ${icon}
         </div>
     `;
@@ -410,7 +449,7 @@ async function handleIncomingMessage(data) {
         try {
             const senderPublicKey = App.publicKeys.get(data.sender_id) || data.sender_public_key;
             const decrypted = await CryptoModule.decryptMessage(data, App.privateKey, senderPublicKey);
-            renderMessage(decrypted.plaintext, false, decrypted.signatureValid);
+            renderMessage(decrypted.plaintext, false, decrypted.signatureValid, null, data.key_exchange);
             $('messages-container').scrollTop = $('messages-container').scrollHeight;
             $('typing-indicator').classList.add('hidden');
         } catch (e) {
@@ -427,13 +466,16 @@ function sendMessage() {
     
     if (!text || !App.currentChat) return;
     
+    // Determine key exchange method (DH if available)
+    const keyExchange = App.dhPublicKeys.has(App.currentChat.userId) ? 'DH' : 'RSA';
+    
     App.socket.emit('send_message', {
         recipient_id: App.currentChat.userId,
         plaintext: text,
         private_key: App.privateKey
     });
     
-    renderMessage(text, true, null);
+    renderMessage(text, true, null, null, keyExchange);
     $('messages-container').scrollTop = $('messages-container').scrollHeight;
     input.value = '';
 }
