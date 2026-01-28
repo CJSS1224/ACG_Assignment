@@ -4,7 +4,7 @@ Socket Routes - ST2504 Applied Cryptography
 
 WebSocket event handlers:
 - Connection management (Solomon)
-- Diffie-Hellman key exchange (Team) - NEW
+- Diffie-Hellman key exchange (Team)
 - Message sending with encryption (Charles, Amir, Yong Cheng, Denise)
 """
 
@@ -166,7 +166,7 @@ def register_socket_events(socketio):
         
         Security (all crypto in Python):
         - AES-256-CTR encryption (Charles)
-        - Diffie-Hellman OR RSA-OAEP key exchange (Team/Denise)
+        - Diffie-Hellman OR RSA-OAEP key exchange (Team)
         - RSA signatures (Yong Cheng)
         - HMAC-SHA256 integrity (Amir)
         """

@@ -7,7 +7,7 @@ All cryptographic operations for SecureChat:
 - HMAC-SHA256 Integrity (Amir)
 - RSA Digital Signatures (Yong Cheng)
 - RSA Key Management (Denise)
-- Diffie-Hellman Key Exchange (Team) - NEW
+- Diffie-Hellman Key Exchange (Team)
 """
 
 import os
