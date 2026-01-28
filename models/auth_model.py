@@ -1,89 +1,77 @@
 """
 Authentication Model - ST2504 Applied Cryptography
+===================================================
 
-This model handles user authentication:
+Handles authentication:
 - Password hashing with bcrypt (Solomon)
-- JWT token generation and verification (Solomon)
-
-Security Features:
-- Passwords are never stored in plaintext
-- bcrypt provides salting and adaptive hashing
-- JWT tokens expire after 24 hours
+- JWT token management (Solomon)
 """
 
 import os
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
-from typing import Optional
+from functools import wraps
+from flask import request, jsonify
 from dotenv import load_dotenv
 
 load_dotenv()
 
+JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key')
+JWT_EXPIRY_HOURS = 24
+
 
 class AuthModel:
-    """
-    Authentication model providing:
-    - Secure password hashing with bcrypt
-    - JWT token generation and verification
-    """
+    """Password hashing and JWT tokens."""
     
-    # JWT configuration
-    JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
-    JWT_ALGORITHM = 'HS256'
-    JWT_EXPIRY_HOURS = 24
-    
-    # bcrypt configuration
-    BCRYPT_ROUNDS = 12  # Cost factor
-    
-    # ==========================================================================
-    # PASSWORD HASHING - Solomon
-    # ==========================================================================
+    # ==================== PASSWORD HASHING (Solomon) ====================
     
     def hash_password(self, password: str) -> str:
-        """Hash a password using bcrypt."""
-        password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt(rounds=self.BCRYPT_ROUNDS)
-        hashed = bcrypt.hashpw(password_bytes, salt)
-        return hashed.decode('utf-8')
+        """Hash password using bcrypt (12 rounds)."""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
     
     def verify_password(self, password: str, password_hash: str) -> bool:
-        """Verify a password against its hash."""
+        """Verify password against hash."""
         try:
-            password_bytes = password.encode('utf-8')
-            hash_bytes = password_hash.encode('utf-8')
-            return bcrypt.checkpw(password_bytes, hash_bytes)
-        except Exception:
+            return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+        except:
             return False
     
-    # ==========================================================================
-    # JWT TOKEN MANAGEMENT - Solomon
-    # ==========================================================================
+    # ==================== JWT TOKEN MANAGEMENT (Solomon) ====================
     
     def generate_token(self, user_id: int, username: str) -> str:
-        """Generate a JWT token for authenticated user."""
+        """Generate JWT token (24 hour expiry)."""
         payload = {
             'id': user_id,
             'username': username,
-            'exp': datetime.utcnow() + timedelta(hours=self.JWT_EXPIRY_HOURS),
+            'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
             'iat': datetime.utcnow()
         }
-        
-        token = jwt.encode(payload, self.JWT_SECRET, algorithm=self.JWT_ALGORITHM)
-        return token
+        return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
     
-    def verify_token(self, token: str) -> Optional[dict]:
-        """Verify and decode a JWT token."""
+    def verify_token(self, token: str) -> dict:
+        """Verify and decode JWT token."""
         try:
-            payload = jwt.decode(
-                token,
-                self.JWT_SECRET,
-                algorithms=[self.JWT_ALGORITHM]
-            )
-            return payload
-        except jwt.ExpiredSignatureError:
-            print("[AUTH] Token expired")
+            return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        except:
             return None
-        except jwt.InvalidTokenError as e:
-            print(f"[AUTH] Invalid token: {e}")
-            return None
+
+
+# ==================== AUTH DECORATOR ====================
+
+auth_model = AuthModel()
+
+def token_required(f):
+    """Decorator to require valid JWT token."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token:
+            return jsonify({'error': 'Token missing'}), 401
+        
+        payload = auth_model.verify_token(token)
+        if not payload:
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        return f(payload, *args, **kwargs)
+    return decorated
