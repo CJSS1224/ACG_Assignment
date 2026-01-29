@@ -7,6 +7,13 @@
  * - Chat management (Charles)
  * - Real-time messaging via WebSocket
  * - Client-side decryption using Web Crypto API
+ * 
+ * FILE ORGANIZATION:
+ * 1. Application State
+ * 2. Core Cryptographic Operations (PRESENT THIS)
+ * 3. Message Handling with Decryption (PRESENT THIS)
+ * 4. Socket Connection & Events
+ * 5. UI Functions (below - less important for presentation)
  */
 
 // ==================== APPLICATION STATE ====================
@@ -22,40 +29,153 @@ const App = {
     publicKeys: new Map()
 };
 
-// ==================== UTILITIES ====================
+// =============================================================================
+// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS (PRESENT THIS)
+// =============================================================================
 
-function $(id) {
-    return document.getElementById(id);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showToast(message, type = 'success') {
-    const container = $('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${escapeHtml(message)}`;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// ==================== API CALLS ====================
-
-async function api(url, options = {}) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (App.token) headers['Authorization'] = `Bearer ${App.token}`;
+/**
+ * Decrypt and display incoming message
+ * 
+ * CRYPTO FLOW:
+ * 1. Receive encrypted message from server
+ * 2. Call CryptoModule.decryptMessage() which:
+ *    - RSA-OAEP decrypts the AES key (Denise)
+ *    - AES-256-CTR decrypts the message (Charles)
+ *    - RSA verifies the signature (Yong Cheng)
+ * 3. Display decrypted plaintext
+ */
+async function handleIncomingMessage(data) {
+    // Add sender to chats if new
+    if (!App.chats.has(data.sender_id)) {
+        App.chats.set(data.sender_id, {
+            userId: data.sender_id,
+            username: data.sender_username,
+            publicKey: data.sender_public_key
+        });
+        App.publicKeys.set(data.sender_id, data.sender_public_key);
+        renderChatList();
+    }
     
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json();
-    return { ok: res.ok, data };
+    // If this chat is currently open, decrypt and display
+    if (App.currentChat && App.currentChat.userId === data.sender_id) {
+        try {
+            const senderPublicKey = App.publicKeys.get(data.sender_id) || data.sender_public_key;
+            
+            // ========== DECRYPTION HAPPENS HERE ==========
+            const decrypted = await CryptoModule.decryptMessage(
+                data,                    // Encrypted message data
+                App.privateKey,          // My RSA private key
+                senderPublicKey          // Sender's public key (for signature verification)
+            );
+            // =============================================
+            
+            renderMessage(decrypted.plaintext, false, decrypted.signatureValid);
+            $('messages-container').scrollTop = $('messages-container').scrollHeight;
+            $('typing-indicator').classList.add('hidden');
+        } catch (e) {
+            console.error('[CRYPTO] Decryption failed:', e);
+            renderMessage('[Decryption failed]', false, false);
+        }
+    } else {
+        showToast(`New message from ${data.sender_username}`);
+    }
 }
 
-// ==================== AUTHENTICATION (Solomon) ====================
+/**
+ * Send encrypted message
+ * 
+ * CRYPTO FLOW:
+ * 1. Send plaintext + private key to server
+ * 2. Server calls crypto_model.encrypt_message() which:
+ *    - Generates random AES-256 key
+ *    - AES-256-CTR encrypts the message (Charles)
+ *    - RSA-OAEP encrypts the AES key (Denise)
+ *    - RSA signs the ciphertext (Yong Cheng)
+ *    - HMAC-SHA256 for integrity (Amir)
+ * 3. Server stores encrypted message in database (Akash)
+ */
+function sendMessage() {
+    const input = $('message-input');
+    const text = input.value.trim();
+    
+    if (!text || !App.currentChat) return;
+    
+    // ========== SEND TO SERVER FOR ENCRYPTION ==========
+    App.socket.emit('send_message', {
+        recipient_id: App.currentChat.userId,
+        plaintext: text,
+        private_key: App.privateKey  // For signing
+    });
+    // ==================================================
+    
+    renderMessage(text, true, null);
+    $('messages-container').scrollTop = $('messages-container').scrollHeight;
+    input.value = '';
+}
 
+/**
+ * Load and decrypt message history
+ * 
+ * CRYPTO FLOW:
+ * For each message in history:
+ * 1. Determine if I'm sender or recipient
+ * 2. Use appropriate encrypted_key (sender or recipient)
+ * 3. Decrypt using CryptoModule.decryptMessage()
+ */
+async function loadMessages(userId) {
+    const container = $('messages-container');
+    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    const { ok, data } = await api(`/api/chats/${userId}/messages`);
+    if (!ok) {
+        container.innerHTML = '<p style="text-align:center;color:#888;">Failed to load messages</p>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    for (const msg of data) {
+        const isSent = msg.sender_id === App.user.id;
+        const senderPublicKey = isSent ? null : (msg.sender_public_key || App.publicKeys.get(msg.sender_id));
+        
+        try {
+            // ========== DECRYPTION FOR EACH MESSAGE ==========
+            const decrypted = await CryptoModule.decryptMessage(
+                {
+                    encrypted_payload: msg.encrypted_payload,
+                    // Use sender's key if I sent it, recipient's key if I received it
+                    encrypted_key: isSent ? msg.encrypted_key_sender : msg.encrypted_key,
+                    iv: msg.iv,
+                    signature: msg.signature
+                },
+                App.privateKey,      // My private key to decrypt
+                senderPublicKey      // Sender's public key to verify signature
+            );
+            // ================================================
+            
+            renderMessage(decrypted.plaintext, isSent, decrypted.signatureValid, msg.timestamp);
+        } catch (e) {
+            console.error('[CRYPTO] Decrypt failed:', e);
+            renderMessage('[Decryption failed]', isSent, false, msg.timestamp);
+        }
+    }
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+// =============================================================================
+// SECTION 2: AUTHENTICATION (Solomon) - JWT & Session Management
+// =============================================================================
+
+/**
+ * Login user
+ * 
+ * CRYPTO FLOW:
+ * 1. Send username/password to server
+ * 2. Server verifies password with bcrypt (Solomon)
+ * 3. Server decrypts private key using PBKDF2 + AES (Denise)
+ * 4. Server returns JWT token + decrypted private key
+ */
 async function login() {
     const username = $('login-username').value.trim();
     const password = $('login-password').value;
@@ -75,17 +195,32 @@ async function login() {
         return;
     }
     
-    // Store session
+    // Store session (includes decrypted private key)
     App.token = data.token;
     App.user = data.user;
-    App.privateKey = data.private_key;
-    localStorage.setItem('session', JSON.stringify({ token: data.token, user: data.user, privateKey: data.private_key }));
+    App.privateKey = data.private_key;  // RSA private key for decryption
+    localStorage.setItem('session', JSON.stringify({ 
+        token: data.token, 
+        user: data.user, 
+        privateKey: data.private_key 
+    }));
     
     showToast('Login successful!');
     showChatScreen();
     connectSocket();
 }
 
+/**
+ * Register new user
+ * 
+ * CRYPTO FLOW:
+ * 1. Send username/password to server
+ * 2. Server generates RSA-2048 keypair (Denise)
+ * 3. Server hashes password with bcrypt (Solomon)
+ * 4. Server encrypts private key with PBKDF2 + AES (Denise)
+ * 5. Server stores in database (Akash)
+ * 6. Server returns JWT token + private key
+ */
 async function register() {
     const username = $('reg-username').value.trim();
     const password = $('reg-password').value;
@@ -114,11 +249,15 @@ async function register() {
         return;
     }
     
-    // Store session
+    // Store session (includes newly generated private key)
     App.token = data.token;
     App.user = data.user;
-    App.privateKey = data.private_key;
-    localStorage.setItem('session', JSON.stringify({ token: data.token, user: data.user, privateKey: data.private_key }));
+    App.privateKey = data.private_key;  // Newly generated RSA private key
+    localStorage.setItem('session', JSON.stringify({ 
+        token: data.token, 
+        user: data.user, 
+        privateKey: data.private_key 
+    }));
     
     showToast('Registration successful! RSA keypair generated.');
     showChatScreen();
@@ -160,26 +299,9 @@ function restoreSession() {
     }
 }
 
-// ==================== UI NAVIGATION ====================
-
-function showLogin() {
-    $('login-form').classList.add('active');
-    $('register-form').classList.remove('active');
-}
-
-function showRegister() {
-    $('register-form').classList.add('active');
-    $('login-form').classList.remove('active');
-}
-
-function showChatScreen() {
-    $('auth-container').classList.add('hidden');
-    $('chat-container').classList.remove('hidden');
-    $('current-username').textContent = App.user.username;
-    loadChats();
-}
-
-// ==================== SOCKET CONNECTION ====================
+// =============================================================================
+// SECTION 3: WEBSOCKET CONNECTION
+// =============================================================================
 
 function connectSocket() {
     App.socket = io({ query: { token: App.token } });
@@ -197,7 +319,7 @@ function connectSocket() {
         $('connection-status').innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
     });
     
-    // User presence
+    // User presence events
     App.socket.on('user_online', (data) => {
         App.onlineUsers.set(data.user_id, data);
         if (data.public_key) {
@@ -222,11 +344,11 @@ function connectSocket() {
         renderChatList();
     });
     
-    // Messages
+    // Message events
     App.socket.on('new_message', handleIncomingMessage);
     App.socket.on('message_sent', (data) => console.log('[SOCKET] Message sent:', data.message_id));
     
-    // Typing
+    // Typing indicators
     App.socket.on('user_typing', (data) => {
         if (App.currentChat && App.currentChat.userId === data.user_id) {
             $('typing-indicator').classList.remove('hidden');
@@ -242,7 +364,58 @@ function connectSocket() {
     App.socket.on('error', (data) => showToast(data.message, 'error'));
 }
 
-// ==================== CHAT MANAGEMENT (Charles) ====================
+// =============================================================================
+// SECTION 4: UI HELPER FUNCTIONS (Less important for presentation)
+// =============================================================================
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showToast(message, type = 'success') {
+    const container = $('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${escapeHtml(message)}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+async function api(url, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (App.token) headers['Authorization'] = `Bearer ${App.token}`;
+    
+    const res = await fetch(url, { ...options, headers });
+    const data = await res.json();
+    return { ok: res.ok, data };
+}
+
+// =============================================================================
+// SECTION 5: UI NAVIGATION & RENDERING
+// =============================================================================
+
+function showLogin() {
+    $('login-form').classList.add('active');
+    $('register-form').classList.remove('active');
+}
+
+function showRegister() {
+    $('register-form').classList.add('active');
+    $('login-form').classList.remove('active');
+}
+
+function showChatScreen() {
+    $('auth-container').classList.add('hidden');
+    $('chat-container').classList.remove('hidden');
+    $('current-username').textContent = App.user.username;
+    loadChats();
+}
 
 async function loadChats() {
     const { ok, data } = await api('/api/chats');
@@ -310,12 +483,10 @@ async function openChat(userId) {
         publicKey: chat.publicKey || chat.public_key
     };
     
-    // Cache public key
     if (App.currentChat.publicKey) {
         App.publicKeys.set(userId, App.currentChat.publicKey);
     }
     
-    // Update UI
     $('no-chat-selected').classList.add('hidden');
     $('active-chat').classList.remove('hidden');
     $('chat-username').textContent = App.currentChat.username;
@@ -323,43 +494,6 @@ async function openChat(userId) {
     
     renderChatList();
     await loadMessages(userId);
-}
-
-async function loadMessages(userId) {
-    const container = $('messages-container');
-    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-    
-    const { ok, data } = await api(`/api/chats/${userId}/messages`);
-    if (!ok) {
-        container.innerHTML = '<p style="text-align:center;color:#888;">Failed to load messages</p>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    for (const msg of data) {
-        const isSent = msg.sender_id === App.user.id;
-        const senderPublicKey = isSent ? null : (msg.sender_public_key || App.publicKeys.get(msg.sender_id));
-        
-        try {
-            const decrypted = await CryptoModule.decryptMessage(
-                {
-                    encrypted_payload: msg.encrypted_payload,
-                    encrypted_key: isSent ? msg.encrypted_key_sender : msg.encrypted_key,
-                    iv: msg.iv,
-                    signature: msg.signature
-                },
-                App.privateKey,
-                senderPublicKey
-            );
-            renderMessage(decrypted.plaintext, isSent, decrypted.signatureValid, msg.timestamp);
-        } catch (e) {
-            console.error('Decrypt failed:', e);
-            renderMessage('[Decryption failed]', isSent, false, msg.timestamp);
-        }
-    }
-    
-    container.scrollTop = container.scrollHeight;
 }
 
 function renderMessage(text, isSent, signatureValid, timestamp) {
@@ -391,53 +525,6 @@ function renderMessage(text, isSent, signatureValid, timestamp) {
     container.appendChild(div);
 }
 
-// ==================== MESSAGE SENDING ====================
-
-async function handleIncomingMessage(data) {
-    // Add to chats if new
-    if (!App.chats.has(data.sender_id)) {
-        App.chats.set(data.sender_id, {
-            userId: data.sender_id,
-            username: data.sender_username,
-            publicKey: data.sender_public_key
-        });
-        App.publicKeys.set(data.sender_id, data.sender_public_key);
-        renderChatList();
-    }
-    
-    // If chat is open, decrypt and show
-    if (App.currentChat && App.currentChat.userId === data.sender_id) {
-        try {
-            const senderPublicKey = App.publicKeys.get(data.sender_id) || data.sender_public_key;
-            const decrypted = await CryptoModule.decryptMessage(data, App.privateKey, senderPublicKey);
-            renderMessage(decrypted.plaintext, false, decrypted.signatureValid);
-            $('messages-container').scrollTop = $('messages-container').scrollHeight;
-            $('typing-indicator').classList.add('hidden');
-        } catch (e) {
-            renderMessage('[Decryption failed]', false, false);
-        }
-    } else {
-        showToast(`New message from ${data.sender_username}`);
-    }
-}
-
-function sendMessage() {
-    const input = $('message-input');
-    const text = input.value.trim();
-    
-    if (!text || !App.currentChat) return;
-    
-    App.socket.emit('send_message', {
-        recipient_id: App.currentChat.userId,
-        plaintext: text,
-        private_key: App.privateKey
-    });
-    
-    renderMessage(text, true, null);
-    $('messages-container').scrollTop = $('messages-container').scrollHeight;
-    input.value = '';
-}
-
 function handleKeyPress(e) {
     if (e.key === 'Enter') {
         sendMessage();
@@ -450,7 +537,9 @@ function handleKeyPress(e) {
     }
 }
 
-// ==================== NEW CHAT MODAL ====================
+// =============================================================================
+// SECTION 6: MODAL FUNCTIONS
+// =============================================================================
 
 function openNewChatModal() {
     $('new-chat-modal').classList.remove('hidden');
@@ -465,7 +554,6 @@ function openNewChatModal() {
     let html = '';
     App.onlineUsers.forEach((user, id) => {
         if (id === App.user.id) return;
-        // Store public key in App.publicKeys, don't pass in onclick (PEM has special chars)
         if (user.public_key) {
             App.publicKeys.set(id, user.public_key);
         }
@@ -479,7 +567,6 @@ function openNewChatModal() {
     
     list.innerHTML = html || '<div class="no-users"><p>No other users online</p></div>';
     
-    // Add click listeners
     list.querySelectorAll('.online-user-item').forEach(item => {
         item.addEventListener('click', () => {
             const userId = parseInt(item.dataset.userId);
@@ -517,14 +604,15 @@ function copyPublicKey() {
     showToast('Public key copied!');
 }
 
-// ==================== INITIALIZATION ====================
+// =============================================================================
+// SECTION 7: INITIALIZATION
+// =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[APP] Initializing SecureChat...');
     
     // Restore session
     if (restoreSession()) {
-        // Verify token
         const { ok } = await api('/api/me');
         if (ok) {
             showChatScreen();
@@ -548,7 +636,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('show-register').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
     $('show-login').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
     
-    // Modal backdrop click
     $('new-chat-modal').addEventListener('click', (e) => { if (e.target.id === 'new-chat-modal') closeModal(); });
     $('chat-info-modal').addEventListener('click', (e) => { if (e.target.id === 'chat-info-modal') closeModal(); });
     
