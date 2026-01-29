@@ -1,65 +1,131 @@
 """
-ST2504 Applied Cryptography - SecureChat Application
-=====================================================
+SecureChat Application
+======================
+ST2504 Applied Cryptography Assignment 2
 
-Main entry point for the secure messaging application.
+A secure messaging application demonstrating:
+    - INTEGRITY IN TRANSIT: HMAC-SHA256 on all messages
+    - CONFIDENTIALITY AT REST: AES-256-GCM encryption
+    - NON-REPUDIATION AT REST: RSA-PSS digital signatures
 
-Cryptographic Features:
-- AES-256-CTR Encryption (Charles)
-- HMAC-SHA256 Integrity (Amir)
-- RSA Digital Signatures (Yong Cheng)
-- RSA-2048 Key Management (Denise)
-- bcrypt Password Hashing (Solomon)
-- JWT Authentication (Solomon)
+Usage:
+    python app.py
 
-Run: python app.py
-Open: http://localhost:5000
+Configuration:
+    Create a .env file with:
+    - SECRET_KEY: JWT signing key
+    - DB_HOST, DB_USER, DB_PASSWORD, DB_NAME: MySQL connection
 """
 
 import os
+import sys
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from dotenv import load_dotenv
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from dotenv import load_dotenv
 
+from models import Database
+from routes import auth_bp, api_bp, init_auth, init_api, register_socket_events
+
+
+# =============================================================================
+# LOAD ENVIRONMENT VARIABLES
+# =============================================================================
+
+# Load .env file from current directory
 load_dotenv()
 
-from routes.api_routes import api
-from routes.socket_routes import register_socket_events
 
-# Initialize Flask
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
-# Register blueprints
-app.register_blueprint(api, url_prefix='/api')
-
-# Register WebSocket events
-register_socket_events(socketio)
-
-
-# Page route
-@app.route('/')
-def index():
-    return render_template('index.html')
+class Config:
+    """Application configuration."""
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+    
+    # Database configuration
+    DB_HOST = os.environ.get('DB_HOST', 'localhost')
+    DB_USER = os.environ.get('DB_USER', 'root')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    DB_NAME = os.environ.get('DB_NAME', 'securechat')
 
 
-# Main
+# =============================================================================
+# APPLICATION FACTORY
+# =============================================================================
+
+def create_app():
+    """Create and configure the Flask application."""
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    
+    # Enable CORS
+    CORS(app)
+    
+    # Initialize Socket.IO
+    socketio = SocketIO(app, cors_allowed_origins="*")
+    
+    # Initialize database
+    db = Database(
+        host=Config.DB_HOST,
+        user=Config.DB_USER,
+        password=Config.DB_PASSWORD,
+        database=Config.DB_NAME
+    )
+    
+    # Initialize routes
+    init_auth(db)
+    init_api(db)
+    
+    # Register blueprints
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(api_bp)
+    
+    # Register socket events
+    register_socket_events(socketio, db, Config.SECRET_KEY)
+    
+    # ==========================================================================
+    # TEMPLATE ROUTES
+    # ==========================================================================
+    
+    @app.route('/')
+    def index():
+        """Serve the main chat page."""
+        return render_template('index.html')
+    
+    @app.route('/health')
+    def health():
+        """Health check endpoint."""
+        return {'status': 'ok'}
+    
+    return app, socketio
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
 if __name__ == '__main__':
-    print("=" * 50)
-    print("ST2504 Applied Cryptography - SecureChat")
-    print("=" * 50)
-    print("Cryptographic Features:")
-    print("  - AES-256-CTR Encryption (Charles)")
-    print("  - HMAC-SHA256 Integrity (Amir)")
-    print("  - RSA Digital Signatures (Yong Cheng)")
-    print("  - RSA-2048 Key Management (Denise)")
-    print("  - bcrypt Password Hashing (Solomon)")
-    print("  - JWT Authentication (Solomon)")
-    print("=" * 50)
-    print("Database: MySQL")
-    print("Server: http://localhost:5000")
-    print("=" * 50)
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    app, socketio = create_app()
+    
+    print("""
+╔══════════════════════════════════════════════════════════════════╗
+║                      SECURECHAT SERVER                           ║
+╠══════════════════════════════════════════════════════════════════╣
+║  ST2504 Applied Cryptography Assignment 2                        ║
+║                                                                  ║
+║  Security Features:                                              ║
+║    ✓ INTEGRITY IN TRANSIT: HMAC-SHA256                          ║
+║    ✓ CONFIDENTIALITY AT REST: AES-256-GCM                       ║
+║    ✓ NON-REPUDIATION AT REST: RSA-PSS                           ║
+║                                                                  ║
+║  Server running at: http://localhost:5000                        ║
+╚══════════════════════════════════════════════════════════════════╝
+    """)
+    
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -61,7 +61,7 @@
             
             <div class="auth-footer">
                 <p><i class="fas fa-lock"></i> ST2504 Applied Cryptography</p>
-                <p class="crypto-info">AES-256 • RSA-2048 • HMAC-SHA256</p>
+                <p class="crypto-info">AES-256-GCM • RSA-2048-PSS • HMAC-SHA256</p>
             </div>
         </div>
     </div>
@@ -109,8 +109,8 @@
                     <h2>Welcome to SecureChat</h2>
                     <p>Select a chat or start a new conversation</p>
                     <div class="security-badges">
-                        <div class="badge"><i class="fas fa-lock"></i><span>End-to-End Encrypted</span></div>
-                        <div class="badge"><i class="fas fa-shield-alt"></i><span>RSA Digital Signatures</span></div>
+                        <div class="badge"><i class="fas fa-lock"></i><span>AES-256-GCM Encrypted</span></div>
+                        <div class="badge"><i class="fas fa-shield-alt"></i><span>RSA-PSS Signatures</span></div>
                         <div class="badge"><i class="fas fa-check-double"></i><span>HMAC Integrity</span></div>
                     </div>
                 </div>
@@ -156,7 +156,7 @@
     </div>
     
     <!-- New Chat Modal -->
-    <div id="new-chat-modal" class="modal hidden">
+    <div id="modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-user-plus"></i> New Chat</h2>
@@ -182,15 +182,15 @@
                 <div class="security-info">
                     <div class="info-item">
                         <i class="fas fa-key"></i>
-                        <div><h4>Encryption</h4><p>AES-256-CTR with unique key per message</p></div>
+                        <div><h4>Encryption</h4><p>AES-256-GCM with unique key per message</p></div>
                     </div>
                     <div class="info-item">
                         <i class="fas fa-signature"></i>
-                        <div><h4>Digital Signature</h4><p>RSA-2048 with SHA-256</p></div>
+                        <div><h4>Digital Signature</h4><p>RSA-2048-PSS for non-repudiation</p></div>
                     </div>
                     <div class="info-item">
                         <i class="fas fa-check-circle"></i>
-                        <div><h4>Integrity</h4><p>HMAC-SHA256 verification</p></div>
+                        <div><h4>Transit Integrity</h4><p>HMAC-SHA256 per-session verification</p></div>
                     </div>
                     <div class="info-item">
                         <i class="fas fa-exchange-alt"></i>
@@ -213,7 +213,6 @@
     
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
-    <script src="/static/js/crypto.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

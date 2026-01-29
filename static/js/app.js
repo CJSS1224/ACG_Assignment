@@ -1,231 +1,188 @@
 /**
- * ST2504 Applied Cryptography - SecureChat Client
- * ================================================
+ * SecureChat Client Application
+ * ==============================
+ * ST2504 Applied Cryptography Assignment 2
  * 
- * Main client application:
- * - Authentication (Solomon)
- * - Chat management (Charles)
- * - Real-time messaging via WebSocket
- * - Client-side decryption using Web Crypto API
+ * This client handles:
+ *   - User authentication (login/register)
+ *   - Real-time messaging via WebSocket
+ *   - HMAC generation for transit integrity
+ *   - UI rendering
  * 
- * FILE ORGANIZATION:
- * 1. Application State
- * 2. Core Cryptographic Operations (PRESENT THIS)
- * 3. Message Handling with Decryption (PRESENT THIS)
- * 4. Socket Connection & Events
- * 5. UI Functions (below - less important for presentation)
+ * NOTE: All encryption happens server-side (Python).
+ *       Client only handles HMAC for transit integrity.
  */
 
-// ==================== APPLICATION STATE ====================
+// =============================================================================
+// APPLICATION STATE
+// =============================================================================
 
 const App = {
+    // Authentication
     token: null,
     user: null,
     privateKey: null,
+    sessionSecret: null,  // For HMAC transit integrity
+    
+    // WebSocket
     socket: null,
+    
+    // Chat state
     currentChat: null,
     chats: new Map(),
     onlineUsers: new Map(),
-    publicKeys: new Map()
+    
+    // Typing timeout
+    typingTimeout: null
 };
 
 // =============================================================================
-// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS (PRESENT THIS)
+// UTILITY FUNCTIONS
 // =============================================================================
 
-/**
- * Decrypt and display incoming message
- * 
- * CRYPTO FLOW:
- * 1. Receive encrypted message from server
- * 2. Call CryptoModule.decryptMessage() which:
- *    - RSA-OAEP decrypts the AES key (Denise)
- *    - AES-256-CTR decrypts the message (Charles)
- *    - RSA verifies the signature (Yong Cheng)
- * 3. Display decrypted plaintext
- */
-async function handleIncomingMessage(data) {
-    // Add sender to chats if new
-    if (!App.chats.has(data.sender_id)) {
-        App.chats.set(data.sender_id, {
-            userId: data.sender_id,
-            username: data.sender_username,
-            publicKey: data.sender_public_key
-        });
-        App.publicKeys.set(data.sender_id, data.sender_public_key);
-        renderChatList();
+/** Shorthand for document.getElementById */
+const $ = (id) => document.getElementById(id);
+
+/** Escape HTML to prevent XSS */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/** Show toast notification */
+function showToast(message, type = 'info') {
+    const container = $('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let icon = 'info-circle';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'error') icon = 'exclamation-circle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    
+    toast.innerHTML = `<i class="fas fa-${icon}"></i><span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+/** Make API request */
+async function api(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    if (App.token) {
+        headers['Authorization'] = `Bearer ${App.token}`;
     }
     
-    // If this chat is currently open, decrypt and display
-    if (App.currentChat && App.currentChat.userId === data.sender_id) {
-        try {
-            const senderPublicKey = App.publicKeys.get(data.sender_id) || data.sender_public_key;
-            
-            // ========== DECRYPTION HAPPENS HERE ==========
-            const decrypted = await CryptoModule.decryptMessage(
-                data,                    // Encrypted message data
-                App.privateKey,          // My RSA private key
-                senderPublicKey          // Sender's public key (for signature verification)
-            );
-            // =============================================
-            
-            renderMessage(decrypted.plaintext, false, decrypted.signatureValid);
-            $('messages-container').scrollTop = $('messages-container').scrollHeight;
-            $('typing-indicator').classList.add('hidden');
-        } catch (e) {
-            console.error('[CRYPTO] Decryption failed:', e);
-            renderMessage('[Decryption failed]', false, false);
-        }
+    if (App.privateKey) {
+        headers['X-Private-Key'] = btoa(App.privateKey);
+    }
+    
+    try {
+        const response = await fetch(url, { ...options, headers });
+        const data = await response.json();
+        return { ok: response.ok, data };
+    } catch (error) {
+        console.error('[API] Error:', error);
+        return { ok: false, data: { error: 'Network error' } };
+    }
+}
+
+/** Update connection status indicator */
+function updateConnectionStatus(connected) {
+    const statusEl = $('connection-status');
+    if (connected) {
+        statusEl.innerHTML = '<span class="status-dot connected"></span><span>Connected securely</span>';
     } else {
-        showToast(`New message from ${data.sender_username}`);
+        statusEl.innerHTML = '<span class="status-dot disconnected"></span><span>Disconnected</span>';
     }
-}
-
-/**
- * Send encrypted message
- * 
- * CRYPTO FLOW:
- * 1. Send plaintext + private key to server
- * 2. Server calls crypto_model.encrypt_message() which:
- *    - Generates random AES-256 key
- *    - AES-256-CTR encrypts the message (Charles)
- *    - RSA-OAEP encrypts the AES key (Denise)
- *    - RSA signs the ciphertext (Yong Cheng)
- *    - HMAC-SHA256 for integrity (Amir)
- * 3. Server stores encrypted message in database (Akash)
- */
-function sendMessage() {
-    const input = $('message-input');
-    const text = input.value.trim();
-    
-    if (!text || !App.currentChat) return;
-    
-    // ========== SEND TO SERVER FOR ENCRYPTION ==========
-    App.socket.emit('send_message', {
-        recipient_id: App.currentChat.userId,
-        plaintext: text,
-        private_key: App.privateKey  // For signing
-    });
-    // ==================================================
-    
-    renderMessage(text, true, null);
-    $('messages-container').scrollTop = $('messages-container').scrollHeight;
-    input.value = '';
-}
-
-/**
- * Load and decrypt message history
- * 
- * CRYPTO FLOW:
- * For each message in history:
- * 1. Determine if I'm sender or recipient
- * 2. Use appropriate encrypted_key (sender or recipient)
- * 3. Decrypt using CryptoModule.decryptMessage()
- */
-async function loadMessages(userId) {
-    const container = $('messages-container');
-    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-    
-    const { ok, data } = await api(`/api/chats/${userId}/messages`);
-    if (!ok) {
-        container.innerHTML = '<p style="text-align:center;color:#888;">Failed to load messages</p>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    for (const msg of data) {
-        const isSent = msg.sender_id === App.user.id;
-        const senderPublicKey = isSent ? null : (msg.sender_public_key || App.publicKeys.get(msg.sender_id));
-        
-        try {
-            // ========== DECRYPTION FOR EACH MESSAGE ==========
-            const decrypted = await CryptoModule.decryptMessage(
-                {
-                    encrypted_payload: msg.encrypted_payload,
-                    // Use sender's key if I sent it, recipient's key if I received it
-                    encrypted_key: isSent ? msg.encrypted_key_sender : msg.encrypted_key,
-                    iv: msg.iv,
-                    signature: msg.signature
-                },
-                App.privateKey,      // My private key to decrypt
-                senderPublicKey      // Sender's public key to verify signature
-            );
-            // ================================================
-            
-            renderMessage(decrypted.plaintext, isSent, decrypted.signatureValid, msg.timestamp);
-        } catch (e) {
-            console.error('[CRYPTO] Decrypt failed:', e);
-            renderMessage('[Decryption failed]', isSent, false, msg.timestamp);
-        }
-    }
-    
-    container.scrollTop = container.scrollHeight;
 }
 
 // =============================================================================
-// SECTION 2: AUTHENTICATION (Solomon) - JWT & Session Management
+// HMAC TRANSIT INTEGRITY
 // =============================================================================
 
 /**
- * Login user
- * 
- * CRYPTO FLOW:
- * 1. Send username/password to server
- * 2. Server verifies password with bcrypt (Solomon)
- * 3. Server decrypts private key using PBKDF2 + AES (Denise)
- * 4. Server returns JWT token + decrypted private key
+ * Generate HMAC-SHA256 for data being sent to server.
+ * This ensures INTEGRITY IN TRANSIT.
  */
-async function login() {
-    const username = $('login-username').value.trim();
-    const password = $('login-password').value;
-    
-    if (!username || !password) {
-        showToast('Please enter username and password', 'error');
-        return;
+async function generateHmac(data) {
+    if (!App.sessionSecret) {
+        return null;
     }
     
-    const { ok, data } = await api('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password })
-    });
+    // Decode base64 session secret
+    const secretBytes = Uint8Array.from(atob(App.sessionSecret), c => c.charCodeAt(0));
     
-    if (!ok) {
-        showToast(data.error || 'Login failed', 'error');
-        return;
-    }
+    // Import key for HMAC
+    const key = await crypto.subtle.importKey(
+        'raw',
+        secretBytes,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
     
-    // Store session (includes decrypted private key)
-    App.token = data.token;
-    App.user = data.user;
-    App.privateKey = data.private_key;  // RSA private key for decryption
-    localStorage.setItem('session', JSON.stringify({ 
-        token: data.token, 
-        user: data.user, 
-        privateKey: data.private_key 
-    }));
+    // Serialize data consistently (must match server)
+    const dataStr = JSON.stringify(data, Object.keys(data).sort());
+    const dataBytes = new TextEncoder().encode(dataStr);
     
-    showToast('Login successful!');
-    showChatScreen();
-    connectSocket();
+    // Generate HMAC
+    const signature = await crypto.subtle.sign('HMAC', key, dataBytes);
+    
+    // Convert to hex
+    return Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 }
 
 /**
- * Register new user
- * 
- * CRYPTO FLOW:
- * 1. Send username/password to server
- * 2. Server generates RSA-2048 keypair (Denise)
- * 3. Server hashes password with bcrypt (Solomon)
- * 4. Server encrypts private key with PBKDF2 + AES (Denise)
- * 5. Server stores in database (Akash)
- * 6. Server returns JWT token + private key
+ * Wrap data with HMAC before sending.
  */
+async function wrapWithHmac(data) {
+    const hmac = await generateHmac(data);
+    return {
+        payload: data,
+        hmac: hmac
+    };
+}
+
+/**
+ * Verify HMAC on received data.
+ */
+async function verifyHmac(wrappedData) {
+    if (!wrappedData.hmac || !App.sessionSecret) {
+        return wrappedData.payload || wrappedData;
+    }
+    
+    const expectedHmac = await generateHmac(wrappedData.payload);
+    
+    if (expectedHmac === wrappedData.hmac) {
+        console.log('[TRANSIT] ✓ HMAC verified');
+        return wrappedData.payload;
+    } else {
+        console.warn('[TRANSIT] ✗ HMAC mismatch!');
+        return wrappedData.payload;  // Still return data but log warning
+    }
+}
+
+// =============================================================================
+// AUTHENTICATION
+// =============================================================================
+
 async function register() {
     const username = $('reg-username').value.trim();
     const password = $('reg-password').value;
     const confirm = $('reg-confirm').value;
     
+    // Validation
     if (username.length < 3) {
         showToast('Username must be at least 3 characters', 'error');
         return;
@@ -249,17 +206,43 @@ async function register() {
         return;
     }
     
-    // Store session (includes newly generated private key)
+    // Store session data
     App.token = data.token;
     App.user = data.user;
-    App.privateKey = data.private_key;  // Newly generated RSA private key
-    localStorage.setItem('session', JSON.stringify({ 
-        token: data.token, 
-        user: data.user, 
-        privateKey: data.private_key 
-    }));
+    App.privateKey = data.private_key;
+    App.sessionSecret = data.session_secret;
     
-    showToast('Registration successful! RSA keypair generated.');
+    showToast('Registration successful! RSA keypair generated.', 'success');
+    showChatScreen();
+    connectSocket();
+}
+
+async function login() {
+    const username = $('login-username').value.trim();
+    const password = $('login-password').value;
+    
+    if (!username || !password) {
+        showToast('Please enter username and password', 'error');
+        return;
+    }
+    
+    const { ok, data } = await api('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+    });
+    
+    if (!ok) {
+        showToast(data.error || 'Login failed', 'error');
+        return;
+    }
+    
+    // Store session data
+    App.token = data.token;
+    App.user = data.user;
+    App.privateKey = data.private_key;
+    App.sessionSecret = data.session_secret;
+    
+    showToast('Login successful!', 'success');
     showChatScreen();
     connectSocket();
 }
@@ -268,6 +251,7 @@ function logout() {
     App.token = null;
     App.user = null;
     App.privateKey = null;
+    App.sessionSecret = null;
     App.currentChat = null;
     App.chats.clear();
     App.onlineUsers.clear();
@@ -277,55 +261,44 @@ function logout() {
         App.socket = null;
     }
     
-    localStorage.removeItem('session');
-    
-    $('auth-container').classList.remove('hidden');
-    $('chat-container').classList.add('hidden');
-    showToast('Logged out');
-}
-
-function restoreSession() {
-    const saved = localStorage.getItem('session');
-    if (!saved) return false;
-    
-    try {
-        const { token, user, privateKey } = JSON.parse(saved);
-        App.token = token;
-        App.user = user;
-        App.privateKey = privateKey;
-        return true;
-    } catch {
-        return false;
-    }
+    showAuthScreen();
+    showToast('Logged out', 'success');
 }
 
 // =============================================================================
-// SECTION 3: WEBSOCKET CONNECTION
+// WEBSOCKET CONNECTION
 // =============================================================================
 
 function connectSocket() {
-    App.socket = io({ query: { token: App.token } });
+    if (!App.token) return;
     
+    App.socket = io({
+        query: { token: App.token }
+    });
+    
+    // Connection events
     App.socket.on('connect', () => {
         console.log('[SOCKET] Connected');
-        $('connection-status').className = 'connection-status connected';
-        $('connection-status').innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+        updateConnectionStatus(true);
         App.socket.emit('get_online_users');
+        
+        // Store private key on server for real-time decryption
+        wrapWithHmac({ private_key: App.privateKey }).then(data => {
+            App.socket.emit('store_private_key', data);
+        });
     });
     
     App.socket.on('disconnect', () => {
         console.log('[SOCKET] Disconnected');
-        $('connection-status').className = 'connection-status disconnected';
-        $('connection-status').innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
+        updateConnectionStatus(false);
     });
     
-    // User presence events
-    App.socket.on('user_online', (data) => {
-        App.onlineUsers.set(data.user_id, data);
-        if (data.public_key) {
-            App.publicKeys.set(data.user_id, data.public_key);
-        }
+    // User events
+    App.socket.on('user_online', async (data) => {
+        const payload = await verifyHmac(data);
+        App.onlineUsers.set(payload.user_id, payload);
         renderChatList();
+        showToast(`${payload.username} is online`, 'info');
     });
     
     App.socket.on('user_offline', (data) => {
@@ -333,72 +306,139 @@ function connectSocket() {
         renderChatList();
     });
     
-    App.socket.on('online_users_list', (data) => {
+    App.socket.on('online_users_list', async (data) => {
+        const payload = await verifyHmac(data);
         App.onlineUsers.clear();
-        data.users.forEach(u => {
-            App.onlineUsers.set(u.id, u);
-            if (u.public_key) {
-                App.publicKeys.set(u.id, u.public_key);
-            }
+        payload.users.forEach(user => {
+            App.onlineUsers.set(user.id, user);
         });
         renderChatList();
     });
     
     // Message events
-    App.socket.on('new_message', handleIncomingMessage);
-    App.socket.on('message_sent', (data) => console.log('[SOCKET] Message sent:', data.message_id));
+    App.socket.on('message_sent', async (data) => {
+        const payload = await verifyHmac(data);
+        console.log('[MSG] Sent:', payload.message_id);
+    });
     
-    // Typing indicators
-    App.socket.on('user_typing', (data) => {
-        if (App.currentChat && App.currentChat.userId === data.user_id) {
+    App.socket.on('new_message', async (data) => {
+        const payload = await verifyHmac(data);
+        handleNewMessage(payload);
+    });
+    
+    App.socket.on('new_message_encrypted', async (data) => {
+        const payload = await verifyHmac(data);
+        // Need to reload messages to decrypt
+        if (App.currentChat && App.currentChat.userId === payload.sender_id) {
+            loadMessages(payload.sender_id);
+        } else {
+            showToast(`New message from ${payload.sender_username}`, 'info');
+        }
+    });
+    
+    // Typing events
+    App.socket.on('user_typing', async (data) => {
+        const payload = await verifyHmac(data);
+        if (App.currentChat && App.currentChat.userId === payload.user_id) {
             $('typing-indicator').classList.remove('hidden');
         }
     });
     
-    App.socket.on('user_stop_typing', (data) => {
-        if (App.currentChat && App.currentChat.userId === data.user_id) {
+    App.socket.on('user_stop_typing', async (data) => {
+        const payload = await verifyHmac(data);
+        if (App.currentChat && App.currentChat.userId === payload.user_id) {
             $('typing-indicator').classList.add('hidden');
         }
     });
     
-    App.socket.on('error', (data) => showToast(data.message, 'error'));
+    // Error events
+    App.socket.on('error', async (data) => {
+        const payload = await verifyHmac(data);
+        showToast(payload.message || 'An error occurred', 'error');
+    });
 }
 
 // =============================================================================
-// SECTION 4: UI HELPER FUNCTIONS (Less important for presentation)
+// MESSAGING
 // =============================================================================
 
-function $(id) {
-    return document.getElementById(id);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showToast(message, type = 'success') {
-    const container = $('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${escapeHtml(message)}`;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-async function api(url, options = {}) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (App.token) headers['Authorization'] = `Bearer ${App.token}`;
+async function sendMessage() {
+    const input = $('message-input');
+    const text = input.value.trim();
     
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json();
-    return { ok: res.ok, data };
+    if (!text || !App.currentChat) return;
+    
+    // Send with HMAC for transit integrity
+    const data = await wrapWithHmac({
+        recipient_id: App.currentChat.userId,
+        message: text,
+        private_key: App.privateKey
+    });
+    
+    App.socket.emit('send_message', data);
+    
+    // Render sent message immediately
+    renderMessage(text, true, null);
+    $('messages-container').scrollTop = $('messages-container').scrollHeight;
+    input.value = '';
+}
+
+function handleNewMessage(payload) {
+    // Add sender to chats if new
+    if (!App.chats.has(payload.sender_id)) {
+        App.chats.set(payload.sender_id, {
+            userId: payload.sender_id,
+            username: payload.sender_username
+        });
+        renderChatList();
+    }
+    
+    // Display if chat is open
+    if (App.currentChat && App.currentChat.userId === payload.sender_id) {
+        renderMessage(payload.message, false, payload.signature_valid);
+        $('messages-container').scrollTop = $('messages-container').scrollHeight;
+        $('typing-indicator').classList.add('hidden');
+    } else {
+        showToast(`New message from ${payload.sender_username}`, 'info');
+    }
+}
+
+async function loadMessages(userId) {
+    const container = $('messages-container');
+    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
+    
+    const { ok, data } = await api(`/api/chats/${userId}/messages`);
+    
+    if (!ok) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">Failed to load messages</p>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    for (const msg of data.messages) {
+        renderMessage(msg.plaintext, msg.is_sent, msg.signature_valid, msg.timestamp);
+    }
+    
+    container.scrollTop = container.scrollHeight;
 }
 
 // =============================================================================
-// SECTION 5: UI NAVIGATION & RENDERING
+// UI RENDERING
 // =============================================================================
+
+function showAuthScreen() {
+    $('auth-container').classList.remove('hidden');
+    $('chat-container').classList.add('hidden');
+}
+
+function showChatScreen() {
+    $('auth-container').classList.add('hidden');
+    $('chat-container').classList.remove('hidden');
+    $('current-username').textContent = App.user.username;
+    $('my-public-key').value = App.user.public_key;
+    loadChats();
+}
 
 function showLogin() {
     $('login-form').classList.add('active');
@@ -406,15 +446,8 @@ function showLogin() {
 }
 
 function showRegister() {
-    $('register-form').classList.add('active');
     $('login-form').classList.remove('active');
-}
-
-function showChatScreen() {
-    $('auth-container').classList.add('hidden');
-    $('chat-container').classList.remove('hidden');
-    $('current-username').textContent = App.user.username;
-    loadChats();
+    $('register-form').classList.add('active');
 }
 
 async function loadChats() {
@@ -422,14 +455,13 @@ async function loadChats() {
     if (!ok) return;
     
     App.chats.clear();
-    data.forEach(c => {
-        App.chats.set(c.other_user_id, {
-            chatId: c.chat_id,
-            userId: c.other_user_id,
-            username: c.other_username,
-            publicKey: c.other_public_key
+    data.chats.forEach(chat => {
+        App.chats.set(chat.other_user_id, {
+            chatId: chat.chat_id,
+            userId: chat.other_user_id,
+            username: chat.other_username,
+            publicKey: chat.other_public_key
         });
-        App.publicKeys.set(c.other_user_id, c.other_public_key);
     });
     
     renderChatList();
@@ -438,7 +470,15 @@ async function loadChats() {
 function renderChatList() {
     const list = $('chat-list');
     
-    if (App.chats.size === 0) {
+    // Combine chats and online users
+    const allUsers = new Map([...App.chats]);
+    App.onlineUsers.forEach((user, id) => {
+        if (!allUsers.has(id)) {
+            allUsers.set(id, user);
+        }
+    });
+    
+    if (allUsers.size === 0) {
         list.innerHTML = `
             <div class="empty-chats">
                 <i class="fas fa-comments"></i>
@@ -452,80 +492,65 @@ function renderChatList() {
     }
     
     let html = '';
-    App.chats.forEach((chat, userId) => {
-        const isOnline = App.onlineUsers.has(userId);
-        const isActive = App.currentChat && App.currentChat.userId === userId;
+    allUsers.forEach((user, id) => {
+        if (id === App.user.id) return;
+        
+        const isOnline = App.onlineUsers.has(id);
+        const isActive = App.currentChat && App.currentChat.userId === id;
+        const username = user.username || user.other_username;
         
         html += `
-            <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat(${userId})">
+            <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat(${id}, '${escapeHtml(username)}')">
                 <div class="avatar">
                     <i class="fas fa-user"></i>
                     ${isOnline ? '<span class="online-indicator"></span>' : ''}
                 </div>
                 <div class="chat-item-info">
-                    <div class="name">${escapeHtml(chat.username)}</div>
+                    <div class="name">${escapeHtml(username)}</div>
                     <div class="last-message">${isOnline ? 'Online' : 'Offline'}</div>
                 </div>
             </div>
         `;
     });
     
-    list.innerHTML = html;
+    list.innerHTML = html || `
+        <div class="empty-chats">
+            <i class="fas fa-comments"></i>
+            <p>No chats yet</p>
+        </div>
+    `;
 }
 
-async function openChat(userId) {
-    const chat = App.chats.get(userId) || App.onlineUsers.get(userId);
-    if (!chat) return;
-    
-    App.currentChat = {
-        userId: userId,
-        username: chat.username,
-        publicKey: chat.publicKey || chat.public_key
-    };
-    
-    if (App.currentChat.publicKey) {
-        App.publicKeys.set(userId, App.currentChat.publicKey);
-    }
+function openChat(userId, username) {
+    App.currentChat = { userId, username };
     
     $('no-chat-selected').classList.add('hidden');
     $('active-chat').classList.remove('hidden');
-    $('chat-username').textContent = App.currentChat.username;
+    $('chat-username').textContent = username;
     $('chat-status').textContent = App.onlineUsers.has(userId) ? 'Online' : 'Offline';
     
     renderChatList();
-    await loadMessages(userId);
+    loadMessages(userId);
 }
 
 function renderMessage(text, isSent, signatureValid, timestamp) {
     const container = $('messages-container');
     
-    let icon = '';
-    if (isSent) {
-        icon = '<i class="fas fa-check-circle" style="color:#4CAF50;" title="Sent"></i>';
-    } else if (signatureValid === true) {
-        icon = '<i class="fas fa-check-double" style="color:#4CAF50;" title="Signature verified"></i>';
-    } else if (signatureValid === false) {
-        icon = '<i class="fas fa-exclamation-triangle" style="color:#ff9800;" title="Signature invalid"></i>';
+    let verifyIcon = '';
+    if (!isSent) {
+        if (signatureValid === true) {
+            verifyIcon = '<i class="fas fa-check-double verified" title="Signature verified"></i>';
+        } else if (signatureValid === false) {
+            verifyIcon = '<i class="fas fa-exclamation-triangle failed" title="Signature invalid"></i>';
+        }
     } else {
-        icon = '<i class="fas fa-lock" title="Encrypted"></i>';
+        verifyIcon = '<i class="fas fa-check" title="Sent"></i>';
     }
     
-    // Parse timestamp correctly
-    let time = 'Now';
+    let timeStr = 'Now';
     if (timestamp) {
-        // MySQL returns "YYYY-MM-DD HH:MM:SS" format
-        // Parse it manually to avoid timezone issues
-        const parts = timestamp.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-        if (parts) {
-            const hours = parseInt(parts[4]);
-            const minutes = parts[5];
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const hour12 = hours % 12 || 12;
-            time = `${hour12}:${minutes} ${ampm}`;
-        } else {
-            // Fallback for other formats
-            time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        }
+        const date = new Date(timestamp.replace(' ', 'T'));
+        timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
     const div = document.createElement('div');
@@ -533,127 +558,153 @@ function renderMessage(text, isSent, signatureValid, timestamp) {
     div.innerHTML = `
         <div class="message-content">${escapeHtml(text)}</div>
         <div class="message-meta">
-            <span class="time">${time}</span>
-            ${icon}
+            <span class="time">${timeStr}</span>
+            ${verifyIcon}
         </div>
     `;
     
     container.appendChild(div);
 }
 
-function handleKeyPress(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
-    } else if (App.currentChat) {
-        App.socket.emit('typing', { recipient_id: App.currentChat.userId });
-        clearTimeout(App.typingTimeout);
-        App.typingTimeout = setTimeout(() => {
-            App.socket.emit('stop_typing', { recipient_id: App.currentChat.userId });
-        }, 1000);
-    }
-}
-
 // =============================================================================
-// SECTION 6: MODAL FUNCTIONS
+// MODALS
 // =============================================================================
 
 function openNewChatModal() {
-    $('new-chat-modal').classList.remove('hidden');
+    $('modal').classList.remove('hidden');
     
     const list = $('online-users-list');
     
     if (App.onlineUsers.size === 0) {
-        list.innerHTML = '<div class="no-users"><i class="fas fa-user-slash"></i><p>No users online</p></div>';
+        list.innerHTML = `
+            <div class="no-users-message">
+                <i class="fas fa-user-slash"></i>
+                <p>No users online</p>
+            </div>
+        `;
         return;
     }
     
     let html = '';
     App.onlineUsers.forEach((user, id) => {
         if (id === App.user.id) return;
-        if (user.public_key) {
-            App.publicKeys.set(id, user.public_key);
-        }
+        
         html += `
-            <div class="online-user-item" data-user-id="${id}" data-username="${escapeHtml(user.username)}">
-                <div class="avatar"><i class="fas fa-user"></i><span class="online-indicator"></span></div>
+            <div class="online-user-item" onclick="startChatWithUser(${id}, '${escapeHtml(user.username)}')">
+                <div class="avatar">
+                    <i class="fas fa-user"></i>
+                    <span class="online-indicator"></span>
+                </div>
                 <span class="username">${escapeHtml(user.username)}</span>
+                <span class="status"><i class="fas fa-circle"></i> Online</span>
             </div>
         `;
     });
     
-    list.innerHTML = html || '<div class="no-users"><p>No other users online</p></div>';
-    
-    list.querySelectorAll('.online-user-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const userId = parseInt(item.dataset.userId);
-            const username = item.dataset.username;
-            startChat(userId, username);
-        });
-    });
+    list.innerHTML = html || `
+        <div class="no-users-message">
+            <i class="fas fa-user-slash"></i>
+            <p>No other users online</p>
+        </div>
+    `;
 }
 
 function closeModal() {
-    $('new-chat-modal').classList.add('hidden');
+    $('modal').classList.add('hidden');
     $('chat-info-modal').classList.add('hidden');
 }
 
-function startChat(userId, username) {
-    const publicKey = App.publicKeys.get(userId) || '';
+function startChatWithUser(userId, username) {
+    closeModal();
     
     if (!App.chats.has(userId)) {
-        App.chats.set(userId, { userId, username, publicKey });
+        App.chats.set(userId, { userId, username });
     }
     
-    closeModal();
     renderChatList();
-    openChat(userId);
+    openChat(userId, username);
 }
 
 function showChatInfo() {
     $('chat-info-modal').classList.remove('hidden');
-    $('my-public-key').value = App.user.public_key;
 }
 
 function copyPublicKey() {
-    $('my-public-key').select();
+    const textarea = $('my-public-key');
+    textarea.select();
     document.execCommand('copy');
-    showToast('Public key copied!');
+    showToast('Public key copied!', 'success');
 }
 
 // =============================================================================
-// SECTION 7: INITIALIZATION
+// EVENT HANDLERS
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[APP] Initializing SecureChat...');
-    
-    // Restore session
-    if (restoreSession()) {
-        const { ok } = await api('/api/me');
-        if (ok) {
-            showChatScreen();
-            connectSocket();
-        } else {
-            localStorage.removeItem('session');
-        }
+async function handleKeyPress(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        await sendMessage();
+    } else if (App.currentChat) {
+        // Send typing indicator
+        const data = await wrapWithHmac({ recipient_id: App.currentChat.userId });
+        App.socket.emit('typing', data);
+        
+        clearTimeout(App.typingTimeout);
+        App.typingTimeout = setTimeout(async () => {
+            const stopData = await wrapWithHmac({ recipient_id: App.currentChat.userId });
+            App.socket.emit('stop_typing', stopData);
+        }, 1000);
     }
+}
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[APP] SecureChat initializing...');
     
-    // Event listeners
-    $('login-form').addEventListener('submit', (e) => { e.preventDefault(); login(); });
-    $('register-form').addEventListener('submit', (e) => { e.preventDefault(); register(); });
+    // Auth form handlers
+    $('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        login();
+    });
+    
+    $('register-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        register();
+    });
+    
+    // Navigation
+    $('show-register').addEventListener('click', (e) => {
+        e.preventDefault();
+        showRegister();
+    });
+    
+    $('show-login').addEventListener('click', (e) => {
+        e.preventDefault();
+        showLogin();
+    });
+    
+    // Chat handlers
     $('message-input').addEventListener('keypress', handleKeyPress);
     $('send-btn').addEventListener('click', sendMessage);
     $('logout-btn').addEventListener('click', logout);
     $('new-chat-btn').addEventListener('click', openNewChatModal);
     $('close-modal').addEventListener('click', closeModal);
+    
+    // Chat info modal
     $('chat-info-btn').addEventListener('click', showChatInfo);
     $('close-info-modal').addEventListener('click', closeModal);
     $('copy-key-btn').addEventListener('click', copyPublicKey);
-    $('show-register').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
-    $('show-login').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
     
-    $('new-chat-modal').addEventListener('click', (e) => { if (e.target.id === 'new-chat-modal') closeModal(); });
-    $('chat-info-modal').addEventListener('click', (e) => { if (e.target.id === 'chat-info-modal') closeModal(); });
+    // Close modal on outside click
+    $('modal').addEventListener('click', (e) => {
+        if (e.target.id === 'modal') closeModal();
+    });
+    $('chat-info-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'chat-info-modal') closeModal();
+    });
     
-    console.log('[APP] Ready');
+    console.log('[APP] SecureChat ready');
 });

@@ -1,11 +1,25 @@
-# ST2504 Applied Cryptography - SecureChat Dependencies
+# SecureChat Dependencies
+# ST2504 Applied Cryptography Assignment 2
 
-flask==3.0.0
+# Web Framework
+Flask==3.0.0
 flask-socketio==5.3.6
 flask-cors==4.0.0
+
+# WebSocket
+python-socketio==5.10.0
+python-engineio==4.8.1
+
+# Database
+mysql-connector-python==8.2.0
+
+# Cryptography
 cryptography==41.0.7
 bcrypt==4.1.2
 PyJWT==2.8.0
+
+# Production Server (optional)
 eventlet==0.34.2
-mysql-connector-python==8.2.0
-python-dotenv==1.0.0
+# OR
+# gevent==23.9.1
+# gevent-websocket==0.10.1
