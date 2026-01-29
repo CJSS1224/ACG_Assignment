@@ -7,6 +7,13 @@
  * - Chat management (Charles)
  * - Real-time messaging via WebSocket
  * - Client-side decryption using Web Crypto API
+ * 
+ * FILE ORGANIZATION:
+ * 1. Application State
+ * 2. Core Cryptographic Operations (PRESENT THIS)
+ * 3. Message Handling with Decryption (PRESENT THIS)
+ * 4. Socket Connection & Events
+ * 5. UI Functions (below - less important for presentation)
  */
 
 // ==================== APPLICATION STATE ====================
@@ -23,7 +30,7 @@ const App = {
 };
 
 // =============================================================================
-// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS
+// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS (PRESENT THIS)
 // =============================================================================
 
 /**
@@ -358,7 +365,7 @@ function connectSocket() {
 }
 
 // =============================================================================
-// SECTION 4: UI HELPER FUNCTIONS
+// SECTION 4: UI HELPER FUNCTIONS (Less important for presentation)
 // =============================================================================
 
 function $(id) {
@@ -503,7 +510,23 @@ function renderMessage(text, isSent, signatureValid, timestamp) {
         icon = '<i class="fas fa-lock" title="Encrypted"></i>';
     }
     
-    const time = timestamp ? new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 'Now';
+    // Parse timestamp correctly
+    let time = 'Now';
+    if (timestamp) {
+        // MySQL returns "YYYY-MM-DD HH:MM:SS" format
+        // Parse it manually to avoid timezone issues
+        const parts = timestamp.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+        if (parts) {
+            const hours = parseInt(parts[4]);
+            const minutes = parts[5];
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const hour12 = hours % 12 || 12;
+            time = `${hour12}:${minutes} ${ampm}`;
+        } else {
+            // Fallback for other formats
+            time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        }
+    }
     
     const div = document.createElement('div');
     div.className = `message ${isSent ? 'sent' : 'received'}`;
