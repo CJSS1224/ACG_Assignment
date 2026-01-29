@@ -7,13 +7,6 @@
  * - Chat management (Charles)
  * - Real-time messaging via WebSocket
  * - Client-side decryption using Web Crypto API
- * 
- * FILE ORGANIZATION:
- * 1. Application State
- * 2. Core Cryptographic Operations (PRESENT THIS)
- * 3. Message Handling with Decryption (PRESENT THIS)
- * 4. Socket Connection & Events
- * 5. UI Functions (below - less important for presentation)
  */
 
 // ==================== APPLICATION STATE ====================
@@ -30,7 +23,7 @@ const App = {
 };
 
 // =============================================================================
-// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS (PRESENT THIS)
+// SECTION 1: CORE CRYPTOGRAPHIC OPERATIONS
 // =============================================================================
 
 /**
@@ -365,7 +358,7 @@ function connectSocket() {
 }
 
 // =============================================================================
-// SECTION 4: UI HELPER FUNCTIONS (Less important for presentation)
+// SECTION 4: UI HELPER FUNCTIONS
 // =============================================================================
 
 function $(id) {
