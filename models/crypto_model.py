@@ -7,7 +7,6 @@ All cryptographic operations for SecureChat:
 - HMAC-SHA256 Integrity (Amir)
 - RSA Digital Signatures (Yong Cheng)
 - RSA Key Management (Denise)
-- Diffie-Hellman Key Exchange (Team)
 """
 
 import os
@@ -18,7 +17,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 
@@ -29,22 +27,6 @@ class CryptoModel:
     AES_KEY_SIZE = 32   # 256 bits
     RSA_KEY_SIZE = 2048
     
-    # Diffie-Hellman parameters (RFC 3526 - 2048-bit MODP Group 14)
-    DH_P = int(
-        "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
-        "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
-        "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
-        "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
-        "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
-        "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
-        "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
-        "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
-        "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
-        "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
-        "15728E5A8AACAA68FFFFFFFFFFFFFFFF", 16
-    )
-    DH_G = 2
-    
     # ==================== UTILITIES ====================
     
     def to_base64(self, data: bytes) -> str:
@@ -52,52 +34,6 @@ class CryptoModel:
     
     def from_base64(self, data: str) -> bytes:
         return base64.b64decode(data.encode('utf-8'))
-    
-    # ==================== DIFFIE-HELLMAN KEY EXCHANGE (Team) ====================
-    
-    def generate_dh_keypair(self) -> tuple:
-        """
-        Generate Diffie-Hellman key pair.
-        Uses RFC 3526 2048-bit MODP Group parameters.
-        
-        Returns:
-            (private_key_int, public_key_b64)
-        """
-        # Generate random private key (256 bits)
-        private_key = int.from_bytes(os.urandom(32), 'big') % (self.DH_P - 2) + 1
-        # Calculate public key: g^private mod p
-        public_key = pow(self.DH_G, private_key, self.DH_P)
-        # Convert public key to base64 for transmission
-        public_key_b64 = self.to_base64(public_key.to_bytes(256, 'big'))
-        return private_key, public_key_b64
-    
-    def compute_dh_shared_secret(self, my_private: int, their_public_b64: str) -> bytes:
-        """
-        Compute DH shared secret and derive AES key.
-        
-        Args:
-            my_private: My DH private key (integer)
-            their_public_b64: Other party's DH public key (Base64)
-        
-        Returns:
-            32-byte AES key derived from shared secret
-        """
-        # Convert their public key from base64
-        their_public = int.from_bytes(self.from_base64(their_public_b64), 'big')
-        
-        # Compute shared secret: their_public^my_private mod p
-        shared_int = pow(their_public, my_private, self.DH_P)
-        shared_bytes = shared_int.to_bytes(256, 'big')
-        
-        # Derive AES key using HKDF
-        hkdf = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,  # 256 bits for AES-256
-            salt=None,
-            info=b'SecureChat DH Key Exchange',
-            backend=default_backend()
-        )
-        return hkdf.derive(shared_bytes)
     
     # ==================== AES-256-CTR ENCRYPTION (Charles) ====================
     
@@ -266,35 +202,21 @@ class CryptoModel:
     # ==================== HIGH-LEVEL MESSAGE OPERATIONS ====================
     
     def encrypt_message(self, plaintext: str, recipient_public_key: str,
-                        sender_private_key: str, sender_public_key: str,
-                        dh_shared_secret: bytes = None) -> dict:
+                        sender_private_key: str, sender_public_key: str) -> dict:
         """
         Encrypt a message with full security:
         - AES-256-CTR for confidentiality (Charles)
-        - RSA-OAEP OR Diffie-Hellman for key exchange (Denise/Team)
+        - RSA-OAEP for key exchange (Denise)
         - RSA signature for non-repudiation (Yong Cheng)
         - HMAC-SHA256 for integrity (Amir)
-        
-        Args:
-            plaintext: Message to encrypt
-            recipient_public_key: Recipient's RSA public key
-            sender_private_key: Sender's RSA private key (for signing)
-            sender_public_key: Sender's RSA public key (for read-back)
-            dh_shared_secret: Optional DH-derived AES key (if using DH)
         """
-        # Use DH-derived key if provided, otherwise generate random key
-        if dh_shared_secret:
-            aes_key = dh_shared_secret
-            key_exchange = 'DH'
-        else:
-            aes_key = os.urandom(self.AES_KEY_SIZE)
-            key_exchange = 'RSA'
+        # Generate random AES key
+        aes_key = os.urandom(self.AES_KEY_SIZE)
         
         # Encrypt message with AES-256-CTR
         ciphertext_b64, nonce_b64 = self.aes_encrypt(plaintext, aes_key)
         
         # Encrypt AES key for recipient and sender (RSA-OAEP)
-        # Even with DH, we encrypt the key with RSA for backward compatibility
         encrypted_key_recipient = self.rsa_encrypt(aes_key, recipient_public_key)
         encrypted_key_sender = self.rsa_encrypt(aes_key, sender_public_key)
         
@@ -312,8 +234,7 @@ class CryptoModel:
             'encrypted_key_sender': encrypted_key_sender,
             'iv': nonce_b64,
             'signature': signature,
-            'hmac': hmac_value,
-            'key_exchange': key_exchange
+            'hmac': hmac_value
         }
     
     def decrypt_message(self, encrypted_data: dict, private_key: str, sender_public_key: str = None) -> dict:
