@@ -4,13 +4,19 @@ Models Package
 Database and service layer for SecureChat.
 
 Modules:
-    - database: Low-level database operations
-    - user: User authentication and key management
-    - message: Encrypted message operations
+    - database: Low-level database operations [Akash]
+    - user: User authentication and key management [Akash]
+    - message: Encrypted message operations [Solomon]
 """
 
-from .database import Database
-from .user import UserService
-from .message import MessageService
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.database import Database
+from models.user import UserService
+from models.message import MessageService
 
 __all__ = ['Database', 'UserService', 'MessageService']

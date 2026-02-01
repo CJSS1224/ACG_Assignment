@@ -1,6 +1,8 @@
 """
 Database Model
 ==============
+Implemented by: Akash (User Authentication & Database Specialist)
+
 Handles all database operations for SecureChat.
 
 Tables:
@@ -20,7 +22,7 @@ from contextlib import contextmanager
 
 
 class Database:
-    """Database operations for SecureChat."""
+    """Database operations for SecureChat. [Akash]"""
     
     def __init__(self, host='localhost', user='root', password='', database='securechat'):
         """Initialize database connection parameters."""
@@ -57,13 +59,13 @@ class Database:
         return base64.b64decode(data.encode('utf-8'))
     
     # =========================================================================
-    # USER OPERATIONS
+    # USER OPERATIONS [Akash]
     # =========================================================================
     
     def create_user(self, username: str, password_hash: str, public_key: str,
                     encrypted_private_key: bytes, nonce: bytes, tag: bytes, salt: bytes) -> Optional[int]:
         """
-        Create a new user account.
+        Create a new user account. [Akash]
         
         Args:
             username: Unique username
@@ -108,7 +110,7 @@ class Database:
             return None
     
     def get_user_by_username(self, username: str) -> Optional[dict]:
-        """Get user by username."""
+        """Get user by username. [Akash]"""
         query = "SELECT * FROM users WHERE username = %s"
         
         try:
@@ -130,7 +132,7 @@ class Database:
             return None
     
     def get_user_by_id(self, user_id: int) -> Optional[dict]:
-        """Get user by ID."""
+        """Get user by ID. [Akash]"""
         query = "SELECT id, username, public_key FROM users WHERE id = %s"
         
         try:
@@ -143,7 +145,7 @@ class Database:
             return None
     
     def get_all_users(self, exclude_id: int = None) -> list:
-        """Get all users (excluding specified ID)."""
+        """Get all users (excluding specified ID). [Akash]"""
         if exclude_id:
             query = "SELECT id, username, public_key FROM users WHERE id != %s"
             params = (exclude_id,)
@@ -161,14 +163,14 @@ class Database:
             return []
     
     # =========================================================================
-    # MESSAGE OPERATIONS
+    # MESSAGE OPERATIONS [Akash - database layer, used by Solomon]
     # =========================================================================
     
     def store_message(self, sender_id: int, recipient_id: int, ciphertext: bytes,
                       nonce: bytes, tag: bytes, encrypted_key: bytes,
                       encrypted_key_sender: bytes, signature: bytes) -> Optional[int]:
         """
-        Store an encrypted message.
+        Store an encrypted message. [Akash]
         
         Args:
             sender_id: Sender's user ID
@@ -211,7 +213,7 @@ class Database:
     
     def get_messages(self, user1_id: int, user2_id: int, limit: int = 100) -> list:
         """
-        Get messages between two users.
+        Get messages between two users. [Akash]
         
         Returns messages in chronological order.
         """
@@ -249,7 +251,7 @@ class Database:
             return []
     
     def get_message_by_id(self, message_id: int) -> Optional[dict]:
-        """Get a single message by ID."""
+        """Get a single message by ID. [Akash]"""
         query = """
             SELECT m.*, u.username as sender_username, u.public_key as sender_public_key
             FROM messages m
@@ -279,11 +281,11 @@ class Database:
             return None
     
     # =========================================================================
-    # CHAT OPERATIONS
+    # CHAT OPERATIONS [Akash]
     # =========================================================================
     
     def get_or_create_chat(self, user1_id: int, user2_id: int) -> Optional[int]:
-        """Get or create a chat between two users."""
+        """Get or create a chat between two users. [Akash]"""
         # Ensure consistent ordering
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
@@ -312,7 +314,7 @@ class Database:
             return None
     
     def update_chat_timestamp(self, user1_id: int, user2_id: int):
-        """Update the last message timestamp for a chat."""
+        """Update the last message timestamp for a chat. [Akash]"""
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
         
@@ -330,7 +332,7 @@ class Database:
             print(f"[DB] Error updating chat: {e}")
     
     def get_user_chats(self, user_id: int) -> list:
-        """Get all chats for a user."""
+        """Get all chats for a user. [Akash]"""
         query = """
             SELECT c.id as chat_id,
                    CASE WHEN c.user1_id = %s THEN c.user2_id ELSE c.user1_id END as other_user_id,

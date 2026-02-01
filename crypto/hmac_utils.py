@@ -1,6 +1,8 @@
 """
 HMAC Module
 ===========
+Implemented by: Denise (HMAC & Key Derivation Specialist)
+
 Provides INTEGRITY IN TRANSIT using HMAC-SHA256.
 
 HMAC (Hash-based Message Authentication Code) ensures that:
@@ -29,7 +31,7 @@ HMAC_KEY_SIZE = 32  # 256 bits
 
 def generate_session_secret() -> bytes:
     """
-    Generate a random session secret for HMAC operations.
+    Generate a random session secret for HMAC operations. [Denise]
     
     Called once per login session. The secret is:
         - Stored on server (in session/memory)
@@ -44,7 +46,7 @@ def generate_session_secret() -> bytes:
 
 def generate_hmac(data: dict, secret: bytes) -> str:
     """
-    Generate HMAC-SHA256 for data being sent.
+    Generate HMAC-SHA256 for data being sent. [Denise]
     
     The data is serialized to JSON with sorted keys for consistency.
     
@@ -66,7 +68,7 @@ def generate_hmac(data: dict, secret: bytes) -> str:
 
 def verify_hmac(data: dict, received_hmac: str, secret: bytes) -> bool:
     """
-    Verify HMAC-SHA256 of received data.
+    Verify HMAC-SHA256 of received data. [Denise]
     
     Uses constant-time comparison to prevent timing attacks.
     

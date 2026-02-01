@@ -1,6 +1,8 @@
 """
 User Service
 ============
+Implemented by: Akash (User Authentication & Database Specialist)
+
 Handles user registration, login, and key management.
 
 Functions:
@@ -8,6 +10,12 @@ Functions:
     - login_user: Authenticate and return decrypted private key
     - get_user: Get user info by ID
 """
+
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bcrypt
 from typing import Optional
@@ -21,7 +29,7 @@ from models.database import Database
 
 
 class UserService:
-    """Handles user authentication and key management."""
+    """Handles user authentication and key management. [Akash]"""
     
     def __init__(self, db: Database):
         """Initialize with database connection."""
@@ -29,15 +37,15 @@ class UserService:
     
     def register_user(self, username: str, password: str) -> dict:
         """
-        Register a new user.
+        Register a new user. [Akash]
         
         Process:
-            1. Validate input
-            2. Check username availability
-            3. Hash password with bcrypt
-            4. Generate RSA-2048 keypair
-            5. Encrypt private key with password-derived key
-            6. Store in database
+            1. Validate input [Akash]
+            2. Check username availability [Akash]
+            3. Hash password with bcrypt [Akash]
+            4. Generate RSA-2048 keypair [Uses Amir's generate_rsa_keypair]
+            5. Encrypt private key with password-derived key [Uses Denise's encrypt_private_key]
+            6. Store in database [Akash]
         
         Args:
             username: Desired username (3+ chars)
@@ -67,7 +75,7 @@ class UserService:
             return {'success': False, 'error': 'Username already taken'}
         
         # =================================================================
-        # STEP 3: Hash password with bcrypt
+        # STEP 3: Hash password with bcrypt [Akash]
         # =================================================================
         password_hash = bcrypt.hashpw(
             password.encode('utf-8'),
@@ -75,17 +83,18 @@ class UserService:
         ).decode('utf-8')
         
         # =================================================================
-        # STEP 4: Generate RSA-2048 keypair
+        # STEP 4: Generate RSA-2048 keypair [Uses Amir's generate_rsa_keypair]
         # =================================================================
         private_key_pem, public_key_pem = generate_rsa_keypair()
         
         # =================================================================
         # STEP 5: Encrypt private key with password-derived key
+        #         [Uses Denise's encrypt_private_key → PBKDF2 + AES-GCM]
         # =================================================================
         encrypted = encrypt_private_key(private_key_pem, password)
         
         # =================================================================
-        # STEP 6: Store in database
+        # STEP 6: Store in database [Akash's Database.create_user]
         # =================================================================
         user_id = self.db.create_user(
             username=username,
@@ -112,13 +121,13 @@ class UserService:
     
     def login_user(self, username: str, password: str) -> dict:
         """
-        Authenticate a user.
+        Authenticate a user. [Akash]
         
         Process:
-            1. Find user by username
-            2. Verify password with bcrypt
-            3. Decrypt private key using password
-            4. Generate session secret for HMAC
+            1. Find user by username [Akash]
+            2. Verify password with bcrypt [Akash]
+            3. Decrypt private key using password [Uses Denise's decrypt_private_key]
+            4. Generate session secret for HMAC [Uses Denise's generate_session_secret]
         
         Args:
             username: Username
@@ -148,6 +157,7 @@ class UserService:
         
         # =================================================================
         # STEP 3: Decrypt private key using password
+        #         [Uses Denise's decrypt_private_key → PBKDF2 + AES-GCM]
         # =================================================================
         try:
             private_key = decrypt_private_key(
@@ -163,7 +173,7 @@ class UserService:
             return {'success': False, 'error': 'Failed to decrypt private key'}
         
         # =================================================================
-        # STEP 4: Generate session secret for HMAC
+        # STEP 4: Generate session secret for HMAC [Uses Denise's generate_session_secret]
         # =================================================================
         session_secret = generate_session_secret()
         
@@ -179,9 +189,9 @@ class UserService:
         }
     
     def get_user(self, user_id: int) -> Optional[dict]:
-        """Get user by ID (public info only)."""
+        """Get user by ID (public info only). [Akash]"""
         return self.db.get_user_by_id(user_id)
     
     def get_all_users(self, exclude_id: int = None) -> list:
-        """Get all users (for user list)."""
+        """Get all users (for user list). [Akash]"""
         return self.db.get_all_users(exclude_id)

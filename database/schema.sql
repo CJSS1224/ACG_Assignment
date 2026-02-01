@@ -1,5 +1,6 @@
 -- SecureChat Database Schema
 -- ST2504 Applied Cryptography Assignment 2
+-- Implemented by: Akash (User Authentication & Database Specialist)
 -- ==========================================
 
 -- Create database

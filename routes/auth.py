@@ -1,13 +1,21 @@
 """
 Authentication Routes
 =====================
+Implemented by: Solomon (Message Service & API Specialist)
+
 Handles user registration and login.
 
 Endpoints:
-    POST /api/register - Create new account
-    POST /api/login - Authenticate user
-    GET /api/me - Get current user info
+    POST /api/register - Create new account [Solomon]
+    POST /api/login - Authenticate user [Solomon]
+    GET /api/me - Get current user info [Solomon]
 """
+
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import jwt
 import base64
@@ -34,7 +42,7 @@ def init_auth(database: Database):
 
 
 def create_token(user_id: int, session_secret: bytes) -> str:
-    """Create JWT token with user ID and session secret."""
+    """Create JWT token with user ID and session secret. [Solomon]"""
     payload = {
         'user_id': user_id,
         'session_secret': base64.b64encode(session_secret).decode('utf-8'),
@@ -44,7 +52,7 @@ def create_token(user_id: int, session_secret: bytes) -> str:
 
 
 def token_required(f):
-    """Decorator to require valid JWT token."""
+    """Decorator to require valid JWT token. [Solomon]"""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -73,13 +81,18 @@ def token_required(f):
 
 
 # =============================================================================
-# ROUTES
+# ROUTES [Solomon]
 # =============================================================================
 
 @auth_bp.route('/api/register', methods=['POST'])
 def register():
     """
-    Register a new user.
+    Register a new user. [Solomon]
+    
+    Calls Akash's user_service.register_user which internally uses:
+        - Amir's generate_rsa_keypair (RSA key generation)
+        - Denise's encrypt_private_key (PBKDF2 + AES-GCM)
+        - Akash's Database.create_user (storage)
     
     Request body:
         {
@@ -123,7 +136,11 @@ def register():
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
     """
-    Login user.
+    Login user. [Solomon]
+    
+    Calls Akash's user_service.login_user which internally uses:
+        - Denise's decrypt_private_key (PBKDF2 + AES-GCM)
+        - Denise's generate_session_secret (HMAC session key)
     
     Request body:
         {
@@ -163,7 +180,7 @@ def login():
 @auth_bp.route('/api/me', methods=['GET'])
 @token_required
 def get_current_user():
-    """Get current user info."""
+    """Get current user info. [Solomon]"""
     user = user_service.get_user(request.user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404

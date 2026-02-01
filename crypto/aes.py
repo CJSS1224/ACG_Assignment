@@ -1,6 +1,8 @@
 """
 AES-256-GCM Encryption Module
 =============================
+Implemented by: Charles (AES Encryption Specialist)
+
 Provides CONFIDENTIALITY AT REST
 
 AES-GCM provides both encryption AND authentication in one operation.
@@ -21,13 +23,13 @@ NONCE_SIZE = 12    # 96 bits (recommended for GCM)
 
 
 def generate_aes_key() -> bytes:
-    """Generate a random 256-bit AES key."""
+    """Generate a random 256-bit AES key. [Charles]"""
     return os.urandom(AES_KEY_SIZE)
 
 
 def aes_gcm_encrypt(plaintext: str, key: bytes) -> tuple[bytes, bytes, bytes]:
     """
-    Encrypt plaintext using AES-256-GCM.
+    Encrypt plaintext using AES-256-GCM. [Charles]
     
     Args:
         plaintext: The message to encrypt
@@ -60,7 +62,7 @@ def aes_gcm_encrypt(plaintext: str, key: bytes) -> tuple[bytes, bytes, bytes]:
 
 def aes_gcm_decrypt(ciphertext: bytes, key: bytes, nonce: bytes, tag: bytes) -> str:
     """
-    Decrypt ciphertext using AES-256-GCM.
+    Decrypt ciphertext using AES-256-GCM. [Charles]
     
     Args:
         ciphertext: The encrypted message
