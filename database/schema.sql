@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS chats (
 );
 
 -- =============================================================================
--- SESSIONS TABLE (Optional - for tracking HMAC secrets)
+-- SESSIONS TABLE
 -- =============================================================================
 -- Stores session secrets for HMAC transit integrity
 -- Alternative: Store in memory/Redis for better performance
