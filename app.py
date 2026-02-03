@@ -128,13 +128,9 @@ if __name__ == '__main__':
 ╚══════════════════════════════════════════════════════════════════╝
     """)
     
-<<<<<<< HEAD
     socketio.run(app, 
              debug=True, 
              host='0.0.0.0', 
              port=5000,
             ssl_context=('SSL-Certs/localhost-cert.pem', 'SSL-Certs/localhost-key.pem')
             )
-=======
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, certfile='SSL-Certs/localhost-cert.pem', keyfile='SSL-Certs/localhost-key.pem')
->>>>>>> 194245487cc370b11aae6ccfb5881341e9674ce4
