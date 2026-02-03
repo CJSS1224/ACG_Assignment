@@ -18,6 +18,9 @@ cryptography==41.0.7
 bcrypt==4.1.2
 PyJWT==2.8.0
 
+# Environment Variables
+python-dotenv==1.0.0
+
 # Production Server (optional)
 eventlet==0.34.2
 # OR

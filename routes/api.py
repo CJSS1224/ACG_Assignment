@@ -1,13 +1,21 @@
 """
 API Routes
 ==========
+Implemented by: Solomon (Message Service & API Specialist)
+
 REST endpoints for chats and messages.
 
 Endpoints:
-    GET /api/users - Get all users
-    GET /api/chats - Get user's chats
-    GET /api/chats/<user_id>/messages - Get messages with user
+    GET /api/users - Get all users [Solomon]
+    GET /api/chats - Get user's chats [Solomon]
+    GET /api/chats/<user_id>/messages - Get messages with user [Solomon]
 """
+
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Blueprint, request, jsonify
 
@@ -33,7 +41,7 @@ def init_api(database: Database):
 
 
 # =============================================================================
-# USER ROUTES
+# USER ROUTES [Solomon]
 # =============================================================================
 
 @api_bp.route('/api/users', methods=['GET'])
@@ -66,7 +74,7 @@ def get_user(user_id):
 
 
 # =============================================================================
-# CHAT ROUTES
+# CHAT ROUTES [Solomon]
 # =============================================================================
 
 @api_bp.route('/api/chats', methods=['GET'])

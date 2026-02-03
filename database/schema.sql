@@ -1,5 +1,6 @@
 -- SecureChat Database Schema
 -- ST2504 Applied Cryptography Assignment 2
+-- Implemented by: Akash (User Authentication & Database Specialist)
 -- ==========================================
 
 -- Create database
@@ -102,4 +103,23 @@ CREATE TABLE IF NOT EXISTS chats (
     
     INDEX idx_user1 (user1_id),
     INDEX idx_user2 (user2_id)
+);
+
+-- =============================================================================
+-- SESSIONS TABLE (Optional - for tracking HMAC secrets)
+-- =============================================================================
+-- Stores session secrets for HMAC transit integrity
+-- Alternative: Store in memory/Redis for better performance
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    session_secret VARCHAR(64) NOT NULL,    -- Base64: 32 bytes -> ~44 chars
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    
+    INDEX idx_user (user_id),
+    INDEX idx_expires (expires_at)
 );

@@ -1,20 +1,28 @@
 """
 Message Service
 ===============
+Implemented by: Solomon (Message Service & API Specialist)
+
 High-level message operations combining crypto and database.
 
 This is the main interface for sending and receiving messages.
 It orchestrates:
-    - AES-GCM encryption (confidentiality)
-    - RSA-OAEP key exchange
-    - RSA-PSS signatures (non-repudiation)
-    - Database storage
+    - AES-GCM encryption (confidentiality) [Charles's functions]
+    - RSA-OAEP key exchange [Amir's functions]
+    - RSA-PSS signatures (non-repudiation) [Yong Cheng's functions]
+    - Database storage [Akash's functions]
 
 Functions:
     - encrypt_and_store_message: Encrypt message and save to DB
     - decrypt_message: Decrypt a message from DB
     - get_conversation: Get and decrypt all messages between users
 """
+
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import Optional
 from crypto import (
@@ -30,7 +38,7 @@ from models.database import Database
 
 
 class MessageService:
-    """Handles encrypted message operations."""
+    """Handles encrypted message operations. [Solomon]"""
     
     def __init__(self, db: Database):
         """Initialize with database connection."""
@@ -46,14 +54,17 @@ class MessageService:
         recipient_public_key: str
     ) -> Optional[int]:
         """
-        Encrypt a message and store it in the database.
+        Encrypt a message and store it in the database. [Solomon]
+        
+        Orchestrates crypto functions from Members 1, 2, 3 and
+        database storage from Akash.
         
         Process:
-            1. Generate random AES-256 key
-            2. Encrypt message with AES-GCM
-            3. Encrypt AES key for both recipient and sender (RSA-OAEP)
-            4. Sign ciphertext+nonce for non-repudiation (RSA-PSS)
-            5. Store everything in database
+            1. Generate random AES-256 key [Charles's generate_aes_key]
+            2. Encrypt message with AES-GCM [Charles's aes_gcm_encrypt]
+            3. Encrypt AES key for both recipient and sender [Amir's rsa_encrypt]
+            4. Sign ciphertext+nonce for non-repudiation [Yong Cheng's rsa_sign]
+            5. Store everything in database [Akash's store_message]
         
         Args:
             plaintext: Message to send
@@ -67,18 +78,18 @@ class MessageService:
             int: Message ID if successful, None otherwise
         """
         # =================================================================
-        # STEP 1: Generate random AES key for this message
+        # STEP 1: Generate random AES key for this message [Charles]
         # =================================================================
         aes_key = generate_aes_key()  # 32 bytes (256 bits)
         
         # =================================================================
-        # STEP 2: Encrypt message with AES-256-GCM
+        # STEP 2: Encrypt message with AES-256-GCM [Charles]
         # CONFIDENTIALITY AT REST
         # =================================================================
         ciphertext, nonce, tag = aes_gcm_encrypt(plaintext, aes_key)
         
         # =================================================================
-        # STEP 3: Encrypt AES key for recipient (RSA-OAEP)
+        # STEP 3: Encrypt AES key for recipient (RSA-OAEP) [Amir]
         # KEY EXCHANGE
         # =================================================================
         encrypted_key = rsa_encrypt(aes_key, recipient_public_key)
@@ -87,7 +98,7 @@ class MessageService:
         encrypted_key_sender = rsa_encrypt(aes_key, sender_public_key)
         
         # =================================================================
-        # STEP 4: Sign (ciphertext || nonce) with sender's private key
+        # STEP 4: Sign (ciphertext || nonce) with sender's private key [Yong Cheng]
         # NON-REPUDIATION AT REST
         # =================================================================
         # Concatenate ciphertext and nonce for signing
@@ -95,7 +106,7 @@ class MessageService:
         signature = rsa_sign(data_to_sign, sender_private_key)
         
         # =================================================================
-        # STEP 5: Store in database
+        # STEP 5: Store in database [Akash]
         # =================================================================
         message_id = self.db.store_message(
             sender_id=sender_id,
@@ -123,13 +134,13 @@ class MessageService:
         verify_signature: bool = True
     ) -> dict:
         """
-        Decrypt a message retrieved from the database.
+        Decrypt a message retrieved from the database. [Solomon]
         
         Process:
-            1. Determine which encrypted key to use (recipient or sender)
-            2. Decrypt AES key with RSA-OAEP
-            3. Decrypt message with AES-GCM
-            4. Optionally verify signature for non-repudiation
+            1. Determine which encrypted key to use (recipient or sender) [Solomon]
+            2. Decrypt AES key with RSA-OAEP [Amir's rsa_decrypt]
+            3. Decrypt message with AES-GCM [Charles's aes_gcm_decrypt]
+            4. Optionally verify signature for non-repudiation [Yong Cheng's rsa_verify]
         
         Args:
             message: Message dict from database
@@ -157,12 +168,12 @@ class MessageService:
             encrypted_key = message['encrypted_key']
         
         # =================================================================
-        # STEP 2: Decrypt AES key with RSA-OAEP
+        # STEP 2: Decrypt AES key with RSA-OAEP [Amir]
         # =================================================================
         aes_key = rsa_decrypt(encrypted_key, user_private_key)
         
         # =================================================================
-        # STEP 3: Decrypt message with AES-GCM
+        # STEP 3: Decrypt message with AES-GCM [Charles]
         # =================================================================
         plaintext = aes_gcm_decrypt(
             message['ciphertext'],
@@ -172,7 +183,7 @@ class MessageService:
         )
         
         # =================================================================
-        # STEP 4: Verify signature (optional)
+        # STEP 4: Verify signature (optional) [Yong Cheng]
         # =================================================================
         signature_valid = None
         if verify_signature and message.get('sender_public_key'):
@@ -199,7 +210,7 @@ class MessageService:
         user_private_key: str
     ) -> list:
         """
-        Get and decrypt all messages in a conversation.
+        Get and decrypt all messages in a conversation. [Solomon]
         
         Args:
             user_id: Current user's ID

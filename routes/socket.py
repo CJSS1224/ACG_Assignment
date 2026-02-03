@@ -1,7 +1,10 @@
 """
 WebSocket Routes
 ================
+Implemented by: Solomon (Message Service & API Specialist)
+
 Real-time messaging using Socket.IO.
+Uses Denise's HMAC functions for transit integrity verification.
 
 Events:
     INCOMING:
@@ -26,6 +29,12 @@ INTEGRITY IN TRANSIT:
     All messages include HMAC for integrity verification.
 """
 
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import jwt
 import base64
 from flask import request
@@ -48,14 +57,14 @@ message_service = None
 
 
 def register_socket_events(socketio, database: Database, secret_key: str):
-    """Register all Socket.IO event handlers."""
+    """Register all Socket.IO event handlers. [Solomon]"""
     global db, user_service, message_service
     db = database
     user_service = UserService(db)
     message_service = MessageService(db)
     
     # =========================================================================
-    # HELPER FUNCTIONS
+    # HELPER FUNCTIONS [Solomon, using Denise's HMAC functions]
     # =========================================================================
     
     def verify_token(token: str) -> dict:
@@ -68,7 +77,8 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     
     def wrap_with_hmac(data: dict, user_id: int) -> dict:
         """
-        Add HMAC to outgoing data for transit integrity.
+        Add HMAC to outgoing data for transit integrity. [Solomon]
+        Uses Denise's generate_hmac function.
         
         INTEGRITY IN TRANSIT: Server signs all outgoing data.
         Client will verify this HMAC to ensure response wasn't tampered.
@@ -85,7 +95,8 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     
     def verify_incoming_hmac(data: dict, user_id: int) -> tuple:
         """
-        Verify HMAC on incoming data.
+        Verify HMAC on incoming data. [Solomon]
+        Uses Denise's verify_hmac function.
         
         INTEGRITY IN TRANSIT: Verify client's data wasn't tampered.
         
@@ -115,12 +126,12 @@ def register_socket_events(socketio, database: Database, secret_key: str):
             return False, {}, "Transit integrity check failed"
     
     # =========================================================================
-    # CONNECTION HANDLERS
+    # CONNECTION HANDLERS [Solomon]
     # =========================================================================
     
     @socketio.on('connect')
     def handle_connect():
-        """Handle WebSocket connection."""
+        """Handle WebSocket connection. [Solomon]"""
         token = request.args.get('token')
         if not token:
             print("[SOCKET] No token provided")
@@ -169,7 +180,7 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     
     @socketio.on('disconnect')
     def handle_disconnect():
-        """Handle WebSocket disconnection."""
+        """Handle WebSocket disconnection. [Solomon]"""
         session_id = request.sid
         user_data = online_users.pop(session_id, None)
         
@@ -184,7 +195,7 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     
     @socketio.on('get_online_users')
     def handle_get_online_users():
-        """Get list of currently online users."""
+        """Get list of currently online users. [Solomon]"""
         session_id = request.sid
         user_data = online_users.get(session_id)
         
@@ -209,21 +220,21 @@ def register_socket_events(socketio, database: Database, secret_key: str):
         emit('online_users_list', response)
     
     # =========================================================================
-    # MESSAGE HANDLER
+    # MESSAGE HANDLER [Solomon]
     # =========================================================================
     
     @socketio.on('send_message')
     def handle_send_message(data):
         """
-        Handle sending an encrypted message.
+        Handle sending an encrypted message. [Solomon]
         
         PROCESS:
-            1. Verify transit integrity (HMAC)
-            2. Encrypt message (AES-GCM) 
-            3. Encrypt AES key (RSA-OAEP)
-            4. Sign for non-repudiation (RSA-PSS)
-            5. Store in database
-            6. Forward to recipient
+            1. Verify transit integrity (HMAC) [Uses Denise's verify_hmac]
+            2. Encrypt message (AES-GCM) [Uses Charles's aes_gcm_encrypt]
+            3. Encrypt AES key (RSA-OAEP) [Uses Amir's rsa_encrypt]
+            4. Sign for non-repudiation (RSA-PSS) [Uses Yong Cheng's rsa_sign]
+            5. Store in database [Uses Akash's store_message]
+            6. Forward to recipient [Solomon]
         
         Expected data (wrapped):
             {
@@ -245,7 +256,7 @@ def register_socket_events(socketio, database: Database, secret_key: str):
         sender_id = user_data['user_id']
         
         # =================================================================
-        # STEP 1: VERIFY TRANSIT INTEGRITY
+        # STEP 1: VERIFY TRANSIT INTEGRITY [Denise's verify_hmac]
         # =================================================================
         is_valid, payload, error = verify_incoming_hmac(data, sender_id)
         if not is_valid:
@@ -269,6 +280,9 @@ def register_socket_events(socketio, database: Database, secret_key: str):
         
         # =================================================================
         # STEPS 2-5: ENCRYPT, SIGN, AND STORE
+        # [Solomon's encrypt_and_store_message orchestrates
+        #  Charles (AES), Amir (RSA-OAEP), Yong Cheng (RSA-PSS),
+        #  Akash (Database)]
         # =================================================================
         try:
             message_id = message_service.encrypt_and_store_message(
@@ -341,7 +355,7 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     @socketio.on('store_private_key')
     def handle_store_private_key(data):
         """
-        Store user's private key in session for real-time decryption.
+        Store user's private key in session for real-time decryption. [Solomon]
         
         This allows the server to decrypt messages for real-time delivery.
         The key is only stored in memory for the session duration.
@@ -365,12 +379,12 @@ def register_socket_events(socketio, database: Database, secret_key: str):
             print(f"[SOCKET] Private key stored for user {user_id}")
     
     # =========================================================================
-    # TYPING INDICATORS
+    # TYPING INDICATORS [Solomon]
     # =========================================================================
     
     @socketio.on('typing')
     def handle_typing(data):
-        """Handle typing indicator."""
+        """Handle typing indicator. [Solomon]"""
         session_id = request.sid
         user_data = online_users.get(session_id)
         
@@ -390,7 +404,7 @@ def register_socket_events(socketio, database: Database, secret_key: str):
     
     @socketio.on('stop_typing')
     def handle_stop_typing(data):
-        """Handle stop typing indicator."""
+        """Handle stop typing indicator. [Solomon]"""
         session_id = request.sid
         user_data = online_users.get(session_id)
         

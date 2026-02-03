@@ -1,6 +1,8 @@
 """
 Key Derivation Module
 =====================
+Implemented by: Denise (HMAC & Key Derivation Specialist)
+
 Provides password-based key derivation using PBKDF2-SHA256.
 
 Used to:
@@ -16,10 +18,15 @@ Functions:
 """
 
 import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from .aes import aes_gcm_encrypt, aes_gcm_decrypt
+from crypto.aes import aes_gcm_encrypt, aes_gcm_decrypt
 
 
 # Constants
@@ -30,7 +37,7 @@ DERIVED_KEY_SIZE = 32    # 256 bits for AES-256
 
 def derive_key(password: str, salt: bytes) -> bytes:
     """
-    Derive a 256-bit encryption key from a password.
+    Derive a 256-bit encryption key from a password. [Denise]
     
     Uses PBKDF2 with SHA-256 and 100,000 iterations.
     
@@ -53,12 +60,12 @@ def derive_key(password: str, salt: bytes) -> bytes:
 
 def encrypt_private_key(private_key_pem: str, password: str) -> dict:
     """
-    Encrypt an RSA private key using the user's password.
+    Encrypt an RSA private key using the user's password. [Denise]
     
     Process:
         1. Generate random salt
-        2. Derive AES key from password + salt using PBKDF2
-        3. Encrypt private key with AES-256-GCM
+        2. Derive AES key from password + salt using PBKDF2 [Denise]
+        3. Encrypt private key with AES-256-GCM [Uses Charles's aes_gcm_encrypt]
     
     Args:
         private_key_pem: RSA private key in PEM format
@@ -91,7 +98,7 @@ def encrypt_private_key(private_key_pem: str, password: str) -> dict:
 
 def decrypt_private_key(encrypted_data: dict, password: str) -> str:
     """
-    Decrypt an RSA private key using the user's password.
+    Decrypt an RSA private key using the user's password. [Denise]
     
     Args:
         encrypted_data: Dict with 'encrypted_private_key', 'nonce', 'tag', 'salt'
